@@ -10,13 +10,13 @@ const config: GameConfig = {
   fuelMax: 1000,
   fuelConsumption: 1,
   targetPosition: {
-    x: window.innerWidth * 0.4,
-    y: window.innerHeight * 0.4
+    x: 0.7,
+    y: 0.6
   },
   initialState: {
     position: {
-      x: window.innerWidth * 0.2,
-      y: window.innerHeight * 0.2
+      x: 0.2,
+      y: 0.2
     },
     velocity: {
       x: 0,
@@ -25,32 +25,67 @@ const config: GameConfig = {
     angle: 0,
     angularVelocity: 0,
     thrust: 0,
-    fuel: 1000
+    fuel: 1000,
+    isCollided: false
   }
 }
 
 // Initialize game
-const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement
-const game = new LunarLanderGame(canvas, config)
+let game: LunarLanderGame | null = null
 
-// Set up button controls
-const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement
-const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
-const stepBtn = document.getElementById('stepBtn') as HTMLButtonElement
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement
+  if (!canvas) {
+    console.error('Canvas element not found')
+    return
+  }
 
-pauseBtn.addEventListener('click', () => {
-  game.togglePause()
-  pauseBtn.textContent = pauseBtn.textContent === 'Pause' ? 'Continue' : 'Pause'
+  // Clean up existing game if any
+  if (game) {
+    game.cleanup()
+  }
+
+  // Create new game instance
+  game = new LunarLanderGame(canvas, config)
+
+  // Set up button controls
+  const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement
+  const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
+  const stepBtn = document.getElementById('stepBtn') as HTMLButtonElement
+
+  if (pauseBtn && resetBtn && stepBtn) {
+    pauseBtn.addEventListener('click', () => {
+      if (game) {
+        game.togglePause()
+        pauseBtn.textContent = pauseBtn.textContent === 'Pause' ? 'Continue' : 'Pause'
+      }
+    })
+
+    resetBtn.addEventListener('click', () => {
+      if (game) {
+        game.reset()
+        pauseBtn.textContent = 'Pause'
+      }
+    })
+
+    stepBtn.addEventListener('click', () => {
+      if (game) {
+        game.step()
+      }
+    })
+
+    // Start game loop
+    game.gameLoop()
+  } else {
+    console.error('Control buttons not found')
+  }
 })
 
-resetBtn.addEventListener('click', () => {
-  game.reset()
-  pauseBtn.textContent = 'Pause'
+// Clean up on page unload
+window.addEventListener('unload', () => {
+  if (game) {
+    game.cleanup()
+    game = null
+  }
 })
-
-stepBtn.addEventListener('click', () => {
-  game.step()
-})
-
-// Start game loop
-game.gameLoop()
