@@ -32,14 +32,16 @@ export class LunarLanderGame {
     this.state = absoluteState;
     this.targetPosition = this.relativeToAbsolute(config.targetPosition);
     
+    // Initialize obstacles before controller
+    this.obstacles = this.generateObstacles();
+    
     this.controller = new DDPController(
       config.gravity,
       config.thrustMax,
       config.torqueMax,
-      this.targetPosition
+      this.targetPosition,
+      this.obstacles
     );
-    
-    this.obstacles = this.generateObstacles();
     
     // Handle window resize
     window.addEventListener('resize', () => {
