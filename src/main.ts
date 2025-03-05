@@ -7,8 +7,8 @@ const config: GameConfig = {
   gravity: 9.81,
   thrustMax: 15,
   torqueMax: 5,
-  fuelMax: 100000,
-  fuelConsumption: 0,
+  fuelMax: 1000,
+  fuelConsumption: 1,
   targetPosition: {
     x: 0.7,
     y: 0.6
@@ -53,8 +53,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement
   const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
   const stepBtn = document.getElementById('stepBtn') as HTMLButtonElement
+  
+  // Add path planning controls
+  const togglePathBtn = document.createElement('button')
+  togglePathBtn.textContent = 'Toggle Path'
+  togglePathBtn.id = 'togglePathBtn'
+  
+  const replanPathBtn = document.createElement('button')
+  replanPathBtn.textContent = 'Replan Path'
+  replanPathBtn.id = 'replanPathBtn'
+  
+  // Add new buttons to controls
+  const controlsDiv = document.querySelector('.controls')
+  if (controlsDiv) {
+    controlsDiv.appendChild(togglePathBtn)
+    controlsDiv.appendChild(replanPathBtn)
+  }
 
-  if (pauseBtn && resetBtn && stepBtn) {
+  if (pauseBtn && resetBtn && stepBtn && togglePathBtn && replanPathBtn) {
     pauseBtn.addEventListener('click', () => {
       if (game) {
         game.togglePause()
@@ -72,6 +88,19 @@ document.addEventListener('DOMContentLoaded', () => {
     stepBtn.addEventListener('click', () => {
       if (game) {
         game.step()
+      }
+    })
+    
+    // Add event listeners for path planning controls
+    togglePathBtn.addEventListener('click', () => {
+      if (game) {
+        game.togglePathVisibility()
+      }
+    })
+    
+    replanPathBtn.addEventListener('click', () => {
+      if (game) {
+        game.replanPath()
       }
     })
 

@@ -1,5 +1,6 @@
 import { GameState, ControlInput, TerrainPoint, GameConfig, Vector2D, Rectangle } from './types';
 import { DDPController } from './ddp';
+import { RRTPathPlanner } from './rrt';
 
 export class LunarLanderGame {
   private canvas: HTMLCanvasElement;
@@ -7,12 +8,17 @@ export class LunarLanderGame {
   private state: GameState;
   private obstacles: Rectangle[];
   private controller: DDPController;
+  private pathPlanner: RRTPathPlanner;
+  private waypoints: Vector2D[] = [];
+  private currentWaypointIndex: number = 0;
+  private waypointThreshold: number = 30;
   private config: GameConfig;
   private isPaused: boolean = false;
   private isStepMode: boolean = false;
   private animationFrameId: number | null = null;
   private scale: number;
   private targetPosition: Vector2D;
+  private showPath: boolean = true;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -45,6 +51,16 @@ export class LunarLanderGame {
       this.canvas.height / this.scale
     );
     
+    // Initialize RRT path planner
+    this.pathPlanner = new RRTPathPlanner(
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
+    );
+    
+    // Plan initial path
+    this.planPath();
+    
     // Handle window resize
     window.addEventListener('resize', () => {
       this.setupCanvas();
@@ -52,6 +68,8 @@ export class LunarLanderGame {
       this.state.position = this.relativeToAbsolute(config.initialState.position);
       this.targetPosition = this.relativeToAbsolute(config.targetPosition);
       this.obstacles = this.generateObstacles();
+      // Re-plan path after resize
+      this.planPath();
     });
   }
 
@@ -260,6 +278,23 @@ export class LunarLanderGame {
     const dt = 0.016; // 60fps
     
     if (!this.state.isCollided) {
+      // Update waypoint tracking
+      this.updateWaypoints();
+      
+      // Get current waypoint as target for DDP controller
+      const currentWaypoint = this.getCurrentWaypoint();
+      
+      // Update controller target
+      this.controller = new DDPController(
+        this.config.gravity,
+        this.config.thrustMax,
+        this.config.torqueMax,
+        currentWaypoint,
+        this.obstacles,
+        this.canvas.width / this.scale,
+        this.canvas.height / this.scale
+      );
+      
       const control = this.controller.computeControl(this.state);
       
       // Update state based on physics with bounds checking
@@ -296,10 +331,55 @@ export class LunarLanderGame {
 
   public draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Draw path and waypoints if enabled
+    if (this.showPath) {
+      this.drawPath();
+    }
+    
     this.drawObstacles();
     this.drawTarget();
     this.drawLander();
     this.drawDebugInfo();
+  }
+
+  private drawPath() {
+    // Draw the planned path
+    if (this.waypoints.length > 1) {
+      this.ctx.save();
+      
+      // Draw path lines
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.waypoints[0].x, this.waypoints[0].y);
+      
+      for (let i = 1; i < this.waypoints.length; i++) {
+        this.ctx.lineTo(this.waypoints[i].x, this.waypoints[i].y);
+      }
+      
+      this.ctx.stroke();
+      
+      // Draw waypoints
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      
+      for (let i = 0; i < this.waypoints.length; i++) {
+        // Current waypoint is highlighted
+        if (i === this.currentWaypointIndex) {
+          this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+          this.ctx.beginPath();
+          this.ctx.arc(this.waypoints[i].x, this.waypoints[i].y, 8, 0, Math.PI * 2);
+          this.ctx.fill();
+        } else {
+          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          this.ctx.beginPath();
+          this.ctx.arc(this.waypoints[i].x, this.waypoints[i].y, 5, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+      }
+      
+      this.ctx.restore();
+    }
   }
 
   private drawDebugInfo() {
@@ -311,7 +391,7 @@ export class LunarLanderGame {
     
     // Background for debug panel
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(10, 10, 250, 160);
+    this.ctx.fillRect(10, 10, 250, 190);
     
     this.ctx.fillStyle = 'white';
     this.ctx.textAlign = 'left';
@@ -333,8 +413,9 @@ export class LunarLanderGame {
     this.ctx.fillText(`Boundary Cost: ${formatCost(costs.boundary)}`, 20, 130);
     this.ctx.fillText(`Total Cost: ${formatCost(costs.total)}`, 20, 150);
     
-    // Display current position
+    // Display current position and waypoint info
     this.ctx.fillText(`Pos: (${this.state.position.x.toFixed(0)}, ${this.state.position.y.toFixed(0)})`, 20, 170);
+    this.ctx.fillText(`Waypoint: ${this.currentWaypointIndex}/${this.waypoints.length}`, 20, 190);
     
     this.ctx.restore();
   }
@@ -373,5 +454,62 @@ export class LunarLanderGame {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
     }
+  }
+
+  // Plan a path from current position to target
+  private planPath(): void {
+    this.waypoints = this.pathPlanner.findPath(
+      this.state.position,
+      this.targetPosition
+    );
+    
+    // Reset waypoint tracking
+    this.currentWaypointIndex = 0;
+    
+    // Log path information
+    console.log(`RRT: Found path with ${this.waypoints.length} waypoints`);
+  }
+
+  // Get current active waypoint
+  private getCurrentWaypoint(): Vector2D {
+    // If no waypoints or reached the end, use target position
+    if (this.waypoints.length === 0 || this.currentWaypointIndex >= this.waypoints.length) {
+      return this.targetPosition;
+    }
+    
+    return this.waypoints[this.currentWaypointIndex];
+  }
+
+  // Update waypoint tracking
+  private updateWaypoints(): void {
+    // If no waypoints, nothing to update
+    if (this.waypoints.length === 0) {
+      return;
+    }
+    
+    // Get current waypoint
+    const currentWaypoint = this.getCurrentWaypoint();
+    
+    // Check if we've reached the current waypoint
+    const distance = Math.hypot(
+      this.state.position.x - currentWaypoint.x,
+      this.state.position.y - currentWaypoint.y
+    );
+    
+    if (distance < this.waypointThreshold) {
+      // Move to next waypoint
+      this.currentWaypointIndex++;
+      console.log(`Reached waypoint ${this.currentWaypointIndex - 1}, moving to next`);
+    }
+  }
+
+  // Toggle path visibility
+  public togglePathVisibility(): void {
+    this.showPath = !this.showPath;
+  }
+
+  // Re-plan path
+  public replanPath(): void {
+    this.planPath();
   }
 } 
