@@ -32,7 +32,7 @@ export class DDPController {
 
   private boundaryAvoidanceCost(position: Vector2D): number {
     const margin = 200; // Safety margin from boundaries
-    const boundaryWeight = 18000; // High weight to strongly avoid boundaries
+    const boundaryWeight = 10;
     let totalCost = 0;
 
     // Distance to each boundary
@@ -59,8 +59,8 @@ export class DDPController {
   }
 
   private obstacleAvoidanceCost(position: Vector2D): number {
-    const margin = 50; // Safety margin around obstacles
-    const obstacleWeight = 2000; // Weight for obstacle avoidance
+    const margin = 100; // Safety margin around obstacles
+    const obstacleWeight = 20; // Weight for obstacle avoidance
     let totalCost = 0;
 
     for (const obstacle of this.obstacles) {
@@ -95,14 +95,47 @@ export class DDPController {
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
     const boundaryCost = this.boundaryAvoidanceCost(state.position);
 
-    return (
-      positionCost + 
-      0.1 * velocityCost + 
-      0.1 * angleCost + 
-      0.05 * angularVelocityCost + 
-      obstacleCost +
-      boundaryCost
-    );
+    // Store costs for debugging
+    this.lastCosts = {
+      position: positionCost,
+      velocity: 0.1 * velocityCost,
+      angle: 0.1 * angleCost,
+      angularVelocity: 0.05 * angularVelocityCost,
+      obstacle: obstacleCost,
+      boundary: boundaryCost,
+      total: positionCost + 
+             0.1 * velocityCost + 
+             0.1 * angleCost + 
+             0.05 * angularVelocityCost + 
+             obstacleCost +
+             boundaryCost
+    };
+
+    return this.lastCosts.total;
+  }
+
+  // Add a property to store the last computed costs
+  private lastCosts: {
+    position: number;
+    velocity: number;
+    angle: number;
+    angularVelocity: number;
+    obstacle: number;
+    boundary: number;
+    total: number;
+  } = {
+    position: 0,
+    velocity: 0,
+    angle: 0,
+    angularVelocity: 0,
+    obstacle: 0,
+    boundary: 0,
+    total: 0
+  };
+
+  // Add a getter to access the costs
+  public getLastCosts() {
+    return this.lastCosts;
   }
 
   public computeControl(currentState: GameState): ControlInput {

@@ -299,6 +299,44 @@ export class LunarLanderGame {
     this.drawObstacles();
     this.drawTarget();
     this.drawLander();
+    this.drawDebugInfo();
+  }
+
+  private drawDebugInfo() {
+    const costs = this.controller.getLastCosts();
+    
+    this.ctx.save();
+    this.ctx.fillStyle = 'white';
+    this.ctx.font = '14px monospace';
+    
+    // Background for debug panel
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(10, 10, 250, 160);
+    
+    this.ctx.fillStyle = 'white';
+    this.ctx.textAlign = 'left';
+    
+    // Format numbers to be more readable
+    const formatCost = (cost: number) => {
+      if (cost < 0.01) return '0';
+      if (cost > 999999) return (cost / 1000000).toFixed(2) + 'M';
+      if (cost > 9999) return (cost / 1000).toFixed(2) + 'K';
+      return cost.toFixed(2);
+    };
+    
+    // Display all costs
+    this.ctx.fillText(`Position Cost: ${formatCost(costs.position)}`, 20, 30);
+    this.ctx.fillText(`Velocity Cost: ${formatCost(costs.velocity)}`, 20, 50);
+    this.ctx.fillText(`Angle Cost: ${formatCost(costs.angle)}`, 20, 70);
+    this.ctx.fillText(`Angular Vel Cost: ${formatCost(costs.angularVelocity)}`, 20, 90);
+    this.ctx.fillText(`Obstacle Cost: ${formatCost(costs.obstacle)}`, 20, 110);
+    this.ctx.fillText(`Boundary Cost: ${formatCost(costs.boundary)}`, 20, 130);
+    this.ctx.fillText(`Total Cost: ${formatCost(costs.total)}`, 20, 150);
+    
+    // Display current position
+    this.ctx.fillText(`Pos: (${this.state.position.x.toFixed(0)}, ${this.state.position.y.toFixed(0)})`, 20, 170);
+    
+    this.ctx.restore();
   }
 
   public gameLoop() {
