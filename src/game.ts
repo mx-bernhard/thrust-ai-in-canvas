@@ -40,7 +40,9 @@ export class LunarLanderGame {
       config.thrustMax,
       config.torqueMax,
       this.targetPosition,
-      this.obstacles
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
     );
     
     // Handle window resize

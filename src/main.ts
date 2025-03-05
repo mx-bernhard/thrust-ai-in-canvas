@@ -7,8 +7,8 @@ const config: GameConfig = {
   gravity: 9.81,
   thrustMax: 15,
   torqueMax: 5,
-  fuelMax: 1000,
-  fuelConsumption: 1,
+  fuelMax: 100000,
+  fuelConsumption: 0,
   targetPosition: {
     x: 0.7,
     y: 0.6

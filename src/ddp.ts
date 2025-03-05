@@ -9,45 +9,58 @@ export class DDPController {
   private readonly torqueMax: number;
   private readonly targetPosition: Vector2D;
   private readonly obstacles: Rectangle[];
+  private readonly canvasWidth: number;
+  private readonly canvasHeight: number;
 
   constructor(
     gravity: number, 
     thrustMax: number, 
     torqueMax: number, 
     targetPosition: Vector2D,
-    obstacles: Rectangle[]
+    obstacles: Rectangle[],
+    canvasWidth: number,
+    canvasHeight: number
   ) {
     this.gravity = gravity;
     this.thrustMax = thrustMax;
     this.torqueMax = torqueMax;
     this.targetPosition = targetPosition;
     this.obstacles = obstacles;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
   }
 
-  private dynamics(state: GameState, control: ControlInput): GameState {
-    const cosAngle = Math.cos(state.angle);
-    const sinAngle = Math.sin(state.angle);
-    
-    return {
-      position: {
-        x: state.position.x + state.velocity.x * this.dt,
-        y: state.position.y + state.velocity.y * this.dt
-      },
-      velocity: {
-        x: state.velocity.x + (control.thrust * sinAngle) * this.dt,
-        y: state.velocity.y + (control.thrust * cosAngle - this.gravity) * this.dt
-      },
-      angle: state.angle + state.angularVelocity * this.dt,
-      angularVelocity: state.angularVelocity + control.torque * this.dt,
-      thrust: control.thrust,
-      fuel: state.fuel - control.thrust * this.dt,
-      isCollided: false
-    };
+  private boundaryAvoidanceCost(position: Vector2D): number {
+    const margin = 200; // Safety margin from boundaries
+    const boundaryWeight = 18000; // High weight to strongly avoid boundaries
+    let totalCost = 0;
+
+    // Distance to each boundary
+    const leftDist = position.x;
+    const rightDist = this.canvasWidth - position.x;
+    const topDist = position.y;
+    const bottomDist = this.canvasHeight - position.y;
+
+    // Add quadratic costs when within margin of any boundary
+    if (leftDist < margin) {
+      totalCost += boundaryWeight * Math.pow(margin - leftDist, 2);
+    }
+    if (rightDist < margin) {
+      totalCost += boundaryWeight * Math.pow(margin - rightDist, 2);
+    }
+    if (topDist < margin) {
+      totalCost += boundaryWeight * Math.pow(margin - topDist, 2);
+    }
+    if (bottomDist < margin) {
+      totalCost += boundaryWeight * Math.pow(margin - bottomDist, 2);
+    }
+
+    return totalCost;
   }
 
   private obstacleAvoidanceCost(position: Vector2D): number {
     const margin = 50; // Safety margin around obstacles
-    const obstacleWeight = 1000; // Weight for obstacle avoidance
+    const obstacleWeight = 2000; // Weight for obstacle avoidance
     let totalCost = 0;
 
     for (const obstacle of this.obstacles) {
@@ -78,15 +91,17 @@ export class DDPController {
     const angleCost = Math.pow(state.angle, 2);
     const angularVelocityCost = Math.pow(state.angularVelocity, 2);
 
-    // Obstacle avoidance cost
+    // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
+    const boundaryCost = this.boundaryAvoidanceCost(state.position);
 
     return (
       positionCost + 
       0.1 * velocityCost + 
       0.1 * angleCost + 
       0.05 * angularVelocityCost + 
-      obstacleCost
+      obstacleCost +
+      boundaryCost
     );
   }
 
@@ -117,5 +132,26 @@ export class DDPController {
     }
 
     return control;
+  }
+
+  private dynamics(state: GameState, control: ControlInput): GameState {
+    const cosAngle = Math.cos(state.angle);
+    const sinAngle = Math.sin(state.angle);
+    
+    return {
+      position: {
+        x: state.position.x + state.velocity.x * this.dt,
+        y: state.position.y + state.velocity.y * this.dt
+      },
+      velocity: {
+        x: state.velocity.x + (control.thrust * sinAngle) * this.dt,
+        y: state.velocity.y + (control.thrust * cosAngle - this.gravity) * this.dt
+      },
+      angle: state.angle + state.angularVelocity * this.dt,
+      angularVelocity: state.angularVelocity + control.torque * this.dt,
+      thrust: control.thrust,
+      fuel: state.fuel - control.thrust * this.dt,
+      isCollided: false
+    };
   }
 } 
