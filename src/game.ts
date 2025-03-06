@@ -895,4 +895,33 @@ export class LunarLanderGame {
   public toggleNarrowPassagesVisualization(show: boolean): void {
     this.showNarrowPassages = show;
   }
+
+  // Add a method to regenerate obstacles
+  public regenerateObstacles(): void {
+    // Generate new obstacles
+    this.obstacles = this.generateObstacles();
+    
+    // Update the controller with new obstacles
+    this.controller = new DDPController(
+      this.config.gravity.y,
+      this.config.thrustMax,
+      this.config.torqueMax,
+      this.targetPosition,
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
+    );
+    
+    // Update the path planner with new obstacles
+    this.pathPlanner = new RRTPathPlanner(
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
+    );
+    
+    // Replan the path with the new obstacles
+    this.planPath();
+    
+    console.log("Obstacles regenerated");
+  }
 } 

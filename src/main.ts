@@ -79,6 +79,14 @@ resetButton.addEventListener('click', () => {
 })
 controlsContainer.appendChild(resetButton)
 
+// Regenerate Obstacles button
+const regenerateObstaclesButton = document.createElement('button')
+regenerateObstaclesButton.textContent = 'New Obstacles'
+regenerateObstaclesButton.addEventListener('click', () => {
+  game.regenerateObstacles()
+})
+controlsContainer.appendChild(regenerateObstaclesButton)
+
 // Toggle path button
 const togglePathButton = document.createElement('button')
 togglePathButton.textContent = 'Hide Path'
