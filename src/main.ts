@@ -5,7 +5,7 @@ import { GameConfig } from './types'
 // Game configuration
 const config: GameConfig = {
   gravity: 9.81,
-  thrustMax: 15,
+  thrustMax: 25,
   torqueMax: 5,
   fuelMax: 1000,
   fuelConsumption: 1,

@@ -14,7 +14,7 @@ export class RRTPathPlanner {
   private readonly obstacles: Rectangle[];
   private readonly width: number;
   private readonly height: number;
-  private readonly boundaryMargin: number = 20;
+  private readonly boundaryMargin: number = 10;
 
   constructor(obstacles: Rectangle[], width: number, height: number) {
     this.obstacles = obstacles;

@@ -19,12 +19,38 @@ export class LunarLanderGame {
   private scale: number;
   private targetPosition: Vector2D;
   private showPath: boolean = true;
+  private isColliding: boolean = false;
+  private debugInfo: {
+    costs: any;
+    position: Vector2D;
+    velocity: Vector2D;
+    speed: number;
+    thrust: number;
+    torque: number;
+    angle: number;
+    waypoints: { current: number, total: number };
+    lastUpdateTime: number;
+  };
+  private debugUpdateInterval: number = 500; // Update debug info every 500ms (2 times per second)
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.config = config;
     this.scale = window.devicePixelRatio || 1;
+    
+    // Initialize debug info
+    this.debugInfo = {
+      costs: { position: 0, velocity: 0, angle: 0, angularVelocity: 0, obstacle: 0, boundary: 0, total: 0 },
+      position: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 },
+      speed: 0,
+      thrust: 0,
+      torque: 0,
+      angle: 0,
+      waypoints: { current: 0, total: 0 },
+      lastUpdateTime: 0
+    };
     
     this.setupCanvas();
     
@@ -120,10 +146,10 @@ export class LunarLanderGame {
     const regions = [
       // Middle region
       {
-        x: canvasWidth * 0.3,
-        y: canvasHeight * 0.3,
-        w: canvasWidth * 0.4,
-        h: canvasHeight * 0.4
+        x: canvasWidth * 0.1,
+        y: canvasHeight * 0.1,
+        w: canvasWidth * 0.8,
+        h: canvasHeight * 0.8
       },
       // Path to target
       {
@@ -139,15 +165,15 @@ export class LunarLanderGame {
         let newRect: Rectangle;
         let overlapping: boolean;
         let attempts = 0;
-        const maxAttempts = 100;
+        const maxAttempts = 1000;
         
         do {
           overlapping = false;
           newRect = {
             x: region.x + Math.random() * (region.w - 40),
             y: region.y + Math.random() * (region.h - 40),
-            width: Math.random() * 30 + 20,
-            height: Math.random() * 30 + 20
+            width: Math.random() * 100 + 20,
+            height: Math.random() * 100 + 20
           };
 
           // Check overlap with existing obstacles
@@ -200,26 +226,35 @@ export class LunarLanderGame {
   }
 
   private drawLander() {
+    const { position, angle, thrust } = this.state;
+    
     this.ctx.save();
-    this.ctx.translate(this.state.position.x, this.state.position.y);
-    this.ctx.rotate(this.state.angle);
+    this.ctx.translate(position.x, position.y);
+    this.ctx.rotate(angle);
     
     // Draw lander body
-    this.ctx.fillStyle = this.state.isCollided ? '#ff4444' : '#fff';
+    if (this.isColliding) {
+      // Flash red on collision
+      this.ctx.fillStyle = '#ff3333';
+    } else {
+      this.ctx.fillStyle = 'white';
+    }
+    
     this.ctx.beginPath();
-    this.ctx.moveTo(-10, -10);
-    this.ctx.lineTo(10, -10);
-    this.ctx.lineTo(0, 10);
+    this.ctx.moveTo(0, -10);
+    this.ctx.lineTo(7, 10);
+    this.ctx.lineTo(-7, 10);
     this.ctx.closePath();
     this.ctx.fill();
     
-    // Draw thrust if active and not collided
-    if (this.state.thrust > 0 && !this.state.isCollided) {
+    // Draw thrust flame if thrusting
+    if (thrust > 0) {
+      this.ctx.fillStyle = '#ff9900';
       this.ctx.beginPath();
       this.ctx.moveTo(-5, 10);
+      this.ctx.lineTo(0, 10 + thrust * 2);
       this.ctx.lineTo(5, 10);
-      this.ctx.lineTo(0, 20 + this.state.thrust * 5);
-      this.ctx.fillStyle = '#f44';
+      this.ctx.closePath();
       this.ctx.fill();
     }
     
@@ -242,33 +277,224 @@ export class LunarLanderGame {
   }
 
   private checkCollision(): boolean {
-    // Check collision with canvas bounds
-    if (this.state.position.x < 0 || 
-        this.state.position.x > this.canvas.width ||
-        this.state.position.y < 0 || 
-        this.state.position.y > this.canvas.height) {
+    // Check collision with boundaries
+    const boundaryMargin = 10;
+    if (this.state.position.x < boundaryMargin ||
+        this.state.position.x > this.canvas.width / this.scale - boundaryMargin ||
+        this.state.position.y < boundaryMargin ||
+        this.state.position.y > this.canvas.height / this.scale - boundaryMargin) {
       return true;
     }
-
+    
     // Check collision with obstacles
+    const landerRadius = 10;
     for (const obstacle of this.obstacles) {
-      if (this.state.position.x >= obstacle.x &&
-          this.state.position.x <= obstacle.x + obstacle.width &&
-          this.state.position.y >= obstacle.y &&
-          this.state.position.y <= obstacle.y + obstacle.height) {
+      // Calculate closest point on rectangle to lander
+      const closestX = Math.max(obstacle.x, Math.min(this.state.position.x, obstacle.x + obstacle.width));
+      const closestY = Math.max(obstacle.y, Math.min(this.state.position.y, obstacle.y + obstacle.height));
+      
+      // Vector from closest point to lander
+      const dx = this.state.position.x - closestX;
+      const dy = this.state.position.y - closestY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < landerRadius) {
         return true;
       }
     }
-
+    
     return false;
   }
 
   private handleCollision() {
-    // Reduce velocity significantly on collision
-    this.state.velocity.x *= 0.2;
-    this.state.velocity.y *= 0.2;
-    this.state.angularVelocity *= 0.2;
-    this.state.isCollided = true;
+    // Implement physics-based collision response
+    console.log("Collision detected - applying physics deflection");
+    
+    // Coefficient of restitution (elasticity of collision)
+    // 1.0 = perfectly elastic, 0.0 = perfectly inelastic
+    const restitution = 0.8;
+    
+    // Check collision with boundaries
+    const boundaryMargin = 10;
+    let collisionHandled = false;
+    
+    if (this.state.position.x < boundaryMargin) {
+      // Left boundary collision - reflect x velocity
+      this.state.position.x = boundaryMargin;
+      this.state.velocity.x = -this.state.velocity.x * restitution;
+      collisionHandled = true;
+    } else if (this.state.position.x > this.canvas.width / this.scale - boundaryMargin) {
+      // Right boundary collision - reflect x velocity
+      this.state.position.x = this.canvas.width / this.scale - boundaryMargin;
+      this.state.velocity.x = -this.state.velocity.x * restitution;
+      collisionHandled = true;
+    }
+    
+    if (this.state.position.y < boundaryMargin) {
+      // Top boundary collision - reflect y velocity
+      this.state.position.y = boundaryMargin;
+      this.state.velocity.y = -this.state.velocity.y * restitution;
+      collisionHandled = true;
+    } else if (this.state.position.y > this.canvas.height / this.scale - boundaryMargin) {
+      // Bottom boundary collision - reflect y velocity
+      this.state.position.y = this.canvas.height / this.scale - boundaryMargin;
+      this.state.velocity.y = -this.state.velocity.y * restitution;
+      collisionHandled = true;
+    }
+    
+    // If boundary collision was handled, don't check obstacles
+    if (collisionHandled) {
+      this.flashCollision();
+      return;
+    }
+    
+    // Check collision with obstacles
+    const landerRadius = 10; // Approximate lander radius
+    for (const obstacle of this.obstacles) {
+      // Calculate closest point on rectangle to lander
+      const closestX = Math.max(obstacle.x, Math.min(this.state.position.x, obstacle.x + obstacle.width));
+      const closestY = Math.max(obstacle.y, Math.min(this.state.position.y, obstacle.y + obstacle.height));
+      
+      // Vector from closest point to lander
+      const dx = this.state.position.x - closestX;
+      const dy = this.state.position.y - closestY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < landerRadius) {
+        // Normalize collision normal
+        const nx = dx / distance;
+        const ny = dy / distance;
+        
+        // Move lander outside obstacle (prevent penetration)
+        this.state.position.x = closestX + nx * landerRadius;
+        this.state.position.y = closestY + ny * landerRadius;
+        
+        // Calculate relative velocity along normal
+        const velAlongNormal = 
+          this.state.velocity.x * nx + 
+          this.state.velocity.y * ny;
+        
+        // Only reflect if moving toward the obstacle
+        if (velAlongNormal < 0) {
+          // Calculate impulse scalar
+          const impulse = -(1 + restitution) * velAlongNormal;
+          
+          // Apply impulse to velocity
+          this.state.velocity.x += impulse * nx;
+          this.state.velocity.y += impulse * ny;
+          
+          // Apply angular impulse based on offset from center
+          // This creates realistic rotation on impact
+          const impactOffset = Math.random() * 2 - 1; // Random offset for simplicity
+          this.state.angularVelocity += impactOffset * impulse * 0.01;
+          
+          // Apply some friction to tangential velocity
+          const friction = 0.3;
+          const tx = -ny; // Tangent is perpendicular to normal
+          const ty = nx;
+          const velAlongTangent = 
+            this.state.velocity.x * tx + 
+            this.state.velocity.y * ty;
+          
+          this.state.velocity.x -= friction * velAlongTangent * tx;
+          this.state.velocity.y -= friction * velAlongTangent * ty;
+          
+          // Collision was handled
+          collisionHandled = true;
+          break;
+        }
+      }
+    }
+    
+    // Flash the lander to indicate collision
+    if (collisionHandled) {
+      this.flashCollision();
+    }
+  }
+  
+  // Add a visual effect for collision
+  private flashCollision() {
+    this.isColliding = true;
+    setTimeout(() => {
+      this.isColliding = false;
+    }, 200);
+  }
+
+  private updateDebugInfo() {
+    const currentTime = Date.now();
+    
+    // Only update debug info at the specified interval
+    if (currentTime - this.debugInfo.lastUpdateTime >= this.debugUpdateInterval) {
+      const costs = this.controller.getLastCosts();
+      const speed = Math.hypot(this.state.velocity.x, this.state.velocity.y);
+      
+      this.debugInfo = {
+        costs,
+        position: { ...this.state.position },
+        velocity: { ...this.state.velocity },
+        speed,
+        thrust: this.state.thrust,
+        torque: this.state.angularVelocity,
+        angle: this.state.angle,
+        waypoints: { 
+          current: this.currentWaypointIndex, 
+          total: this.waypoints.length 
+        },
+        lastUpdateTime: currentTime
+      };
+    }
+  }
+
+  private drawDebugInfo() {
+    this.ctx.save();
+    this.ctx.fillStyle = 'white';
+    this.ctx.font = '14px monospace';
+    
+    // Background for debug panel
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(10, 10, 250, 270);
+    
+    this.ctx.fillStyle = 'white';
+    this.ctx.textAlign = 'left';
+    
+    // Format numbers to be more readable
+    const formatCost = (cost: number) => {
+      if (cost < 0.01) return '0';
+      if (cost > 999999) return (cost / 1000000).toFixed(2) + 'M';
+      if (cost > 9999) return (cost / 1000).toFixed(2) + 'K';
+      return cost.toFixed(2);
+    };
+    
+    // Format velocity and control values for display
+    const formatValue = (val: number) => {
+      return val.toFixed(2);
+    };
+    
+    // Display all costs
+    this.ctx.fillText(`Position Cost: ${formatCost(this.debugInfo.costs.position)}`, 20, 30);
+    this.ctx.fillText(`Velocity Cost: ${formatCost(this.debugInfo.costs.velocity)}`, 20, 50);
+    this.ctx.fillText(`Angle Cost: ${formatCost(this.debugInfo.costs.angle)}`, 20, 70);
+    this.ctx.fillText(`Angular Vel Cost: ${formatCost(this.debugInfo.costs.angularVelocity)}`, 20, 90);
+    this.ctx.fillText(`Obstacle Cost: ${formatCost(this.debugInfo.costs.obstacle)}`, 20, 110);
+    this.ctx.fillText(`Boundary Cost: ${formatCost(this.debugInfo.costs.boundary)}`, 20, 130);
+    this.ctx.fillText(`Total Cost: ${formatCost(this.debugInfo.costs.total)}`, 20, 150);
+    
+    // Display current position and waypoint info
+    this.ctx.fillText(`Pos: (${this.debugInfo.position.x.toFixed(0)}, ${this.debugInfo.position.y.toFixed(0)})`, 20, 170);
+    
+    // Display velocity information
+    this.ctx.fillText(`Vel X: ${formatValue(this.debugInfo.velocity.x)}`, 20, 190);
+    this.ctx.fillText(`Vel Y: ${formatValue(this.debugInfo.velocity.y)}`, 20, 210);
+    this.ctx.fillText(`Speed: ${formatValue(this.debugInfo.speed)}`, 20, 230);
+    
+    // Display control input information
+    this.ctx.fillText(`Thrust: ${formatValue(this.debugInfo.thrust)} / ${this.config.thrustMax}`, 20, 250);
+    this.ctx.fillText(`Torque: ${formatValue(this.debugInfo.torque)}`, 20, 270);
+    
+    this.ctx.fillText(`Waypoint: ${this.debugInfo.waypoints.current}/${this.debugInfo.waypoints.total}`, 150, 190);
+    this.ctx.fillText(`Angle: ${formatValue(this.debugInfo.angle)}`, 150, 210);
+    
+    this.ctx.restore();
   }
 
   private update() {
@@ -277,56 +503,60 @@ export class LunarLanderGame {
 
     const dt = 0.016; // 60fps
     
-    if (!this.state.isCollided) {
-      // Update waypoint tracking
-      this.updateWaypoints();
-      
-      // Get current waypoint as target for DDP controller
-      const currentWaypoint = this.getCurrentWaypoint();
-      
-      // Update controller target
-      this.controller = new DDPController(
-        this.config.gravity,
-        this.config.thrustMax,
-        this.config.torqueMax,
-        currentWaypoint,
-        this.obstacles,
-        this.canvas.width / this.scale,
-        this.canvas.height / this.scale
-      );
-      
-      const control = this.controller.computeControl(this.state);
-      
-      // Update state based on physics with bounds checking
-      const cosAngle = Math.cos(this.state.angle);
-      const sinAngle = Math.sin(this.state.angle);
-      
-      // Clamp velocities to prevent numerical instability
-      const maxVelocity = 1000;
-      this.state.velocity.x = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.velocity.x));
-      this.state.velocity.y = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.velocity.y));
-      this.state.angularVelocity = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.angularVelocity));
-      
-      // Update position and velocities
-      this.state.position.x += this.state.velocity.x * dt;
-      this.state.position.y += this.state.velocity.y * dt;
-      this.state.velocity.x += (control.thrust * sinAngle) * dt;
-      this.state.velocity.y += (control.thrust * cosAngle - this.config.gravity) * dt;
-      this.state.angle += this.state.angularVelocity * dt;
-      this.state.angularVelocity += control.torque * dt;
-      this.state.thrust = control.thrust;
-      this.state.fuel = Math.max(0, this.state.fuel - control.thrust * dt);
+    // Update waypoint tracking
+    this.updateWaypoints();
+    
+    // Get current waypoint as target for DDP controller
+    const currentWaypoint = this.getCurrentWaypoint();
+    
+    // Update controller target
+    this.controller = new DDPController(
+      this.config.gravity,
+      this.config.thrustMax,
+      this.config.torqueMax,
+      currentWaypoint,
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
+    );
+    
+    const control = this.controller.computeControl(this.state);
+    
+    // Store previous position for collision detection
+    const prevPosition = { ...this.state.position };
+    
+    // Update state based on physics with bounds checking
+    const cosAngle = Math.cos(this.state.angle);
+    const sinAngle = Math.sin(this.state.angle);
+    
+    // Clamp velocities to prevent numerical instability
+    const maxVelocity = 1000;
+    this.state.velocity.x = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.velocity.x));
+    this.state.velocity.y = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.velocity.y));
+    this.state.angularVelocity = Math.max(-maxVelocity, Math.min(maxVelocity, this.state.angularVelocity));
+    
+    // Update position and velocities
+    this.state.position.x += this.state.velocity.x * dt;
+    this.state.position.y += this.state.velocity.y * dt;
+    this.state.velocity.x += (control.thrust * sinAngle) * dt;
+    this.state.velocity.y += (-control.thrust * cosAngle + this.config.gravity) * dt;
+    //this.state.velocity.y += (control.thrust * cosAngle - this.config.gravity) * dt;
+    this.state.angle += this.state.angularVelocity * dt;
+    this.state.angularVelocity += control.torque * dt;
+    this.state.thrust = control.thrust;
+    this.state.fuel = Math.max(0, this.state.fuel - control.thrust * dt);
 
-      if (this.checkCollision()) {
-        this.handleCollision();
-      }
-    } else {
-      // Continue physics simulation after collision but with no control input
-      this.state.position.x += this.state.velocity.x * dt;
-      this.state.position.y += this.state.velocity.y * dt;
-      this.state.velocity.y += this.config.gravity * dt;
-      this.state.angle += this.state.angularVelocity * dt;
+    // Check for collision after movement
+    if (this.checkCollision()) {
+      // If collision detected, handle it
+      this.handleCollision();
+      
+      // Debug log to verify position after collision
+      console.log(`Position after collision: (${this.state.position.x.toFixed(2)}, ${this.state.position.y.toFixed(2)})`);
     }
+    
+    // Update debug info
+    this.updateDebugInfo();
   }
 
   public draw() {
@@ -380,44 +610,6 @@ export class LunarLanderGame {
       
       this.ctx.restore();
     }
-  }
-
-  private drawDebugInfo() {
-    const costs = this.controller.getLastCosts();
-    
-    this.ctx.save();
-    this.ctx.fillStyle = 'white';
-    this.ctx.font = '14px monospace';
-    
-    // Background for debug panel
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(10, 10, 250, 190);
-    
-    this.ctx.fillStyle = 'white';
-    this.ctx.textAlign = 'left';
-    
-    // Format numbers to be more readable
-    const formatCost = (cost: number) => {
-      if (cost < 0.01) return '0';
-      if (cost > 999999) return (cost / 1000000).toFixed(2) + 'M';
-      if (cost > 9999) return (cost / 1000).toFixed(2) + 'K';
-      return cost.toFixed(2);
-    };
-    
-    // Display all costs
-    this.ctx.fillText(`Position Cost: ${formatCost(costs.position)}`, 20, 30);
-    this.ctx.fillText(`Velocity Cost: ${formatCost(costs.velocity)}`, 20, 50);
-    this.ctx.fillText(`Angle Cost: ${formatCost(costs.angle)}`, 20, 70);
-    this.ctx.fillText(`Angular Vel Cost: ${formatCost(costs.angularVelocity)}`, 20, 90);
-    this.ctx.fillText(`Obstacle Cost: ${formatCost(costs.obstacle)}`, 20, 110);
-    this.ctx.fillText(`Boundary Cost: ${formatCost(costs.boundary)}`, 20, 130);
-    this.ctx.fillText(`Total Cost: ${formatCost(costs.total)}`, 20, 150);
-    
-    // Display current position and waypoint info
-    this.ctx.fillText(`Pos: (${this.state.position.x.toFixed(0)}, ${this.state.position.y.toFixed(0)})`, 20, 170);
-    this.ctx.fillText(`Waypoint: ${this.currentWaypointIndex}/${this.waypoints.length}`, 20, 190);
-    
-    this.ctx.restore();
   }
 
   public gameLoop() {

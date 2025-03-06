@@ -3,7 +3,7 @@ import { GameState, ControlInput, Vector2D, Rectangle } from './types';
 export class DDPController {
   private readonly dt = 0.016; // 60fps
   private readonly horizon = 60; // 1 second prediction horizon
-  private readonly iterations = 10;
+  private readonly iterations = 30;
   private readonly gravity: number;
   private readonly thrustMax: number;
   private readonly torqueMax: number;
@@ -31,8 +31,8 @@ export class DDPController {
   }
 
   private boundaryAvoidanceCost(position: Vector2D): number {
-    const margin = 200; // Safety margin from boundaries
-    const boundaryWeight = 10;
+    const margin = 50; // Safety margin from boundaries
+    const boundaryWeight = 9;
     let totalCost = 0;
 
     // Distance to each boundary
@@ -60,7 +60,7 @@ export class DDPController {
 
   private obstacleAvoidanceCost(position: Vector2D): number {
     const margin = 100; // Safety margin around obstacles
-    const obstacleWeight = 20; // Weight for obstacle avoidance
+    const obstacleWeight = 1.0; // Weight for obstacle avoidance
     let totalCost = 0;
 
     for (const obstacle of this.obstacles) {
@@ -83,13 +83,14 @@ export class DDPController {
     const positionCost = 
       Math.pow(state.position.x - this.targetPosition.x, 2) +
       Math.pow(state.position.y - this.targetPosition.y, 2);
-    
+    const velocityWeight = 1
+    const angularVelocityWeight = 0.1
     // Movement costs
     const velocityCost = 
-      Math.pow(state.velocity.x, 2) +
-      Math.pow(state.velocity.y, 2);
+      Math.pow(state.velocity.x * velocityWeight, 2) +
+      Math.pow(state.velocity.y * velocityWeight, 2);
     const angleCost = Math.pow(state.angle, 2);
-    const angularVelocityCost = Math.pow(state.angularVelocity, 2);
+    const angularVelocityCost = Math.pow(state.angularVelocity * angularVelocityWeight, 2);
 
     // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
@@ -98,15 +99,15 @@ export class DDPController {
     // Store costs for debugging
     this.lastCosts = {
       position: positionCost,
-      velocity: 0.1 * velocityCost,
-      angle: 0.1 * angleCost,
-      angularVelocity: 0.05 * angularVelocityCost,
+      velocity: velocityCost,
+      angle: angleCost,
+      angularVelocity: angularVelocityCost,
       obstacle: obstacleCost,
       boundary: boundaryCost,
       total: positionCost + 
-             0.1 * velocityCost + 
-             0.1 * angleCost + 
-             0.05 * angularVelocityCost + 
+             velocityCost + 
+             angleCost + 
+             angularVelocityCost + 
              obstacleCost +
              boundaryCost
     };
@@ -178,7 +179,7 @@ export class DDPController {
       },
       velocity: {
         x: state.velocity.x + (control.thrust * sinAngle) * this.dt,
-        y: state.velocity.y + (control.thrust * cosAngle - this.gravity) * this.dt
+        y: state.velocity.y + (-control.thrust * cosAngle + this.gravity) * this.dt
       },
       angle: state.angle + state.angularVelocity * this.dt,
       angularVelocity: state.angularVelocity + control.torque * this.dt,
