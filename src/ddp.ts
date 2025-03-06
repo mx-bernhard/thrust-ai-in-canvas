@@ -184,30 +184,8 @@ export class DDPController {
       angle: state.angle + state.angularVelocity * this.dt,
       angularVelocity: state.angularVelocity + control.torque * this.dt,
       thrust: control.thrust,
-      fuel: typeof state.fuel === 'number' ? state.fuel - control.thrust * this.dt : 1000,
+      fuel: state.fuel - control.thrust * this.dt,
       isCollided: false
     };
   }
-
-  // Commented out as it's not used
-  // private predictNextState(state: GameState, control: ControlInput): GameState {
-  //   const cosAngle = Math.cos(state.angle);
-  //   const sinAngle = Math.sin(state.angle);
-  //   
-  //   return {
-  //     position: {
-  //       x: state.position.x + state.velocity.x * this.dt,
-  //       y: state.position.y + state.velocity.y * this.dt
-  //     },
-  //     velocity: {
-  //       x: state.velocity.x + (control.thrust * sinAngle) * this.dt,
-  //       y: state.velocity.y + (-control.thrust * cosAngle + this.gravity) * this.dt
-  //     },
-  //     angle: state.angle + state.angularVelocity * this.dt,
-  //     angularVelocity: state.angularVelocity + control.torque * this.dt,
-  //     thrust: control.thrust,
-  //     fuel: typeof state.fuel === 'number' ? state.fuel - control.thrust * this.dt : 1000,
-  //     isCollided: false
-  //   };
-  // }
 } 
