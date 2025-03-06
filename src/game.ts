@@ -468,17 +468,27 @@ export class LunarLanderGame {
     }
   }
 
-  private drawDebugInfo() {
+  private drawDebugInfo(): void {
+    const currentTime = Date.now();
+    
+    // Only update debug info at the throttled rate
+    if (currentTime - this.debugInfo.lastUpdateTime >= this.debugUpdateInterval) {
+      this.updateDebugInfo();
+    }
+    
     this.ctx.save();
     this.ctx.fillStyle = 'white';
     this.ctx.font = '14px monospace';
     
     // Background for debug panel
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(10, 10, 250, 290); // Increased height to accommodate path info
+    this.ctx.fillRect(10, 10, 250, 310); // Increased height to accommodate collision course cost
     
     this.ctx.fillStyle = 'white';
     this.ctx.textAlign = 'left';
+    
+    let debugY = 30;
+    const lineHeight = 20;
     
     // Format numbers to be more readable
     const formatCost = (cost: number) => {
@@ -494,25 +504,53 @@ export class LunarLanderGame {
     };
     
     // Display all costs
-    this.ctx.fillText(`Position Cost: ${formatCost(this.debugInfo.costs.position)}`, 20, 30);
-    this.ctx.fillText(`Velocity Cost: ${formatCost(this.debugInfo.costs.velocity)}`, 20, 50);
-    this.ctx.fillText(`Angle Cost: ${formatCost(this.debugInfo.costs.angle)}`, 20, 70);
-    this.ctx.fillText(`Angular Vel Cost: ${formatCost(this.debugInfo.costs.angularVelocity)}`, 20, 90);
-    this.ctx.fillText(`Obstacle Cost: ${formatCost(this.debugInfo.costs.obstacle)}`, 20, 110);
-    this.ctx.fillText(`Boundary Cost: ${formatCost(this.debugInfo.costs.boundary)}`, 20, 130);
-    this.ctx.fillText(`Total Cost: ${formatCost(this.debugInfo.costs.total)}`, 20, 150);
+    this.ctx.fillText(`Position Cost: ${formatCost(this.debugInfo.costs.position)}`, 20, debugY);
+    debugY += lineHeight;
     
-    // Display current position and waypoint info
-    this.ctx.fillText(`Pos: (${this.debugInfo.position.x.toFixed(0)}, ${this.debugInfo.position.y.toFixed(0)})`, 20, 170);
+    this.ctx.fillText(`Velocity Cost: ${formatCost(this.debugInfo.costs.velocity)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Angle Cost: ${formatCost(this.debugInfo.costs.angle)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Angular Vel Cost: ${formatCost(this.debugInfo.costs.angularVelocity)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Obstacle Cost: ${formatCost(this.debugInfo.costs.obstacle)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Boundary Cost: ${formatCost(this.debugInfo.costs.boundary)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    // Add collision course cost
+    if (this.debugInfo.costs.collisionCourse !== undefined) {
+      this.ctx.fillText(`Collision Course: ${formatCost(this.debugInfo.costs.collisionCourse)}`, 20, debugY);
+      debugY += lineHeight;
+    }
+    
+    this.ctx.fillText(`Total Cost: ${formatCost(this.debugInfo.costs.total)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    // Display current position
+    this.ctx.fillText(`Pos: (${this.debugInfo.position.x.toFixed(0)}, ${this.debugInfo.position.y.toFixed(0)})`, 20, debugY);
+    debugY += lineHeight;
     
     // Display velocity information
-    this.ctx.fillText(`Vel X: ${formatValue(this.debugInfo.velocity.x)}`, 20, 190);
-    this.ctx.fillText(`Vel Y: ${formatValue(this.debugInfo.velocity.y)}`, 20, 210);
-    this.ctx.fillText(`Speed: ${formatValue(this.debugInfo.speed)}`, 20, 230);
+    this.ctx.fillText(`Vel X: ${formatValue(this.debugInfo.velocity.x)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Vel Y: ${formatValue(this.debugInfo.velocity.y)}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Speed: ${formatValue(this.debugInfo.speed)}`, 20, debugY);
+    debugY += lineHeight;
     
     // Display control input information
-    this.ctx.fillText(`Thrust: ${formatValue(this.debugInfo.thrust)} / ${this.config.thrustMax}`, 20, 250);
-    this.ctx.fillText(`Torque: ${formatValue(this.debugInfo.torque)}`, 20, 270);
+    this.ctx.fillText(`Thrust: ${formatValue(this.debugInfo.thrust)} / ${this.config.thrustMax}`, 20, debugY);
+    debugY += lineHeight;
+    
+    this.ctx.fillText(`Torque: ${formatValue(this.debugInfo.torque)}`, 20, debugY);
+    debugY += lineHeight;
     
     // Add path planning info
     if (this.waypoints.length > 0) {

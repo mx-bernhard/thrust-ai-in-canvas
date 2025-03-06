@@ -15,8 +15,11 @@ export class DDPController {
   private readonly angularVelocityWeight = 0.1
   private readonly boundaryMargin = 50; // Safety margin from boundaries
   private readonly boundaryWeight = 9;
-  private readonly obstacleMargin = 100; // Safety margin around obstacles
-  private readonly obstacleWeight = 1.5; // Weight for obstacle avoidance
+  private readonly obstacleMargin = 0; // Safety margin around obstacles
+  private readonly obstacleWeight = 0; // Weight for obstacle avoidance
+  private readonly collisionCourseWeight = 5.0; // Weight for collision course avoidance
+  private readonly collisionTimeHorizon = 5.0; // Time horizon for collision prediction (seconds)
+  private readonly shipRadius = 15; // Ship radius for collision detection
 
   constructor(
     gravity: number, 
@@ -34,6 +37,110 @@ export class DDPController {
     this.obstacles = obstacles;
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
+  }
+
+  // Add a method to calculate collision course cost
+  private collisionCourseCost(state: GameState): number {
+    if (this.obstacles.length === 0) return 0;
+    
+    const position = state.position;
+    const velocity = state.velocity;
+    
+    // If velocity is very small, no collision course
+    const speed = Math.hypot(velocity.x, velocity.y);
+    if (speed < 0.1) return 0;
+    
+    let totalCost = 0;
+    
+    // Check for collision course with each obstacle
+    for (const obstacle of this.obstacles) {
+      // Expand obstacle by ship radius
+      const expandedObstacle = {
+        x: obstacle.x - this.shipRadius,
+        y: obstacle.y - this.shipRadius,
+        width: obstacle.width + 2 * this.shipRadius,
+        height: obstacle.height + 2 * this.shipRadius
+      };
+      
+      // Calculate time to potential collision
+      // Project the velocity vector and see where it intersects with the obstacle
+      
+      // Normalized velocity direction
+      const vx = velocity.x / speed;
+      const vy = velocity.y / speed;
+      
+      // Check intersection with each edge of the expanded obstacle
+      const edges = [
+        // Top edge
+        { p1: { x: expandedObstacle.x, y: expandedObstacle.y }, 
+          p2: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y } },
+        // Right edge
+        { p1: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y }, 
+          p2: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y + expandedObstacle.height } },
+        // Bottom edge
+        { p1: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y + expandedObstacle.height }, 
+          p2: { x: expandedObstacle.x, y: expandedObstacle.y + expandedObstacle.height } },
+        // Left edge
+        { p1: { x: expandedObstacle.x, y: expandedObstacle.y + expandedObstacle.height }, 
+          p2: { x: expandedObstacle.x, y: expandedObstacle.y } }
+      ];
+      
+      // Find minimum time to collision with any edge
+      let minTimeToCollision = Infinity;
+      
+      for (const edge of edges) {
+        // Ray-line segment intersection
+        const x1 = edge.p1.x - position.x;
+        const y1 = edge.p1.y - position.y;
+        const x2 = edge.p2.x - position.x;
+        const y2 = edge.p2.y - position.y;
+        
+        // Cross products to determine if ray intersects line segment
+        const cross1 = x1 * vy - y1 * vx;
+        const cross2 = x2 * vy - y2 * vx;
+        
+        // If signs are different, there's an intersection
+        if (cross1 * cross2 <= 0) {
+          // Calculate intersection point
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          
+          // Avoid division by zero
+          if (Math.abs(dx * vy - dy * vx) < 1e-6) continue;
+          
+          // Parameter along the line segment
+          const t = (x1 * vy - y1 * vx) / (dy * vx - dx * vy);
+          
+          // Ensure intersection is on the line segment
+          if (t < 0 || t > 1) continue;
+          
+          // Intersection point
+          const ix = edge.p1.x + t * dx;
+          const iy = edge.p1.y + t * dy;
+          
+          // Distance to intersection
+          const dist = Math.hypot(ix - position.x, iy - position.y);
+          
+          // Time to collision
+          const timeToCollision = dist / speed;
+          
+          // Update minimum time if this is smaller
+          if (timeToCollision < minTimeToCollision && timeToCollision > 0) {
+            minTimeToCollision = timeToCollision;
+          }
+        }
+      }
+      
+      // If we found a collision within our time horizon
+      if (minTimeToCollision < this.collisionTimeHorizon) {
+        // Cost is higher for imminent collisions and lower for distant ones
+        // Use inverse relationship with time to collision
+        const timeFactor = 1.0 - (minTimeToCollision / this.collisionTimeHorizon);
+        totalCost += this.collisionCourseWeight * Math.pow(timeFactor, 2) * 1000;
+      }
+    }
+    
+    return totalCost;
   }
 
   private boundaryAvoidanceCost(position: Vector2D): number {
@@ -95,6 +202,9 @@ export class DDPController {
     // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
     const boundaryCost = this.boundaryAvoidanceCost(state.position);
+    
+    // New collision course cost
+    const collisionCourseCost = this.collisionCourseCost(state);
 
     // Store costs for debugging
     this.lastCosts = {
@@ -104,18 +214,20 @@ export class DDPController {
       angularVelocity: angularVelocityCost,
       obstacle: obstacleCost,
       boundary: boundaryCost,
+      collisionCourse: collisionCourseCost,
       total: positionCost + 
              velocityCost + 
              angleCost + 
              angularVelocityCost + 
              obstacleCost +
-             boundaryCost
+             boundaryCost +
+             collisionCourseCost
     };
 
     return this.lastCosts.total;
   }
 
-  // Add a property to store the last computed costs
+  // Update the lastCosts property to include the new cost
   private lastCosts: {
     position: number;
     velocity: number;
@@ -123,6 +235,7 @@ export class DDPController {
     angularVelocity: number;
     obstacle: number;
     boundary: number;
+    collisionCourse: number;
     total: number;
   } = {
     position: 0,
@@ -131,6 +244,7 @@ export class DDPController {
     angularVelocity: 0,
     obstacle: 0,
     boundary: 0,
+    collisionCourse: 0,
     total: 0
   };
 
