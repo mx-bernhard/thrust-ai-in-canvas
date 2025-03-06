@@ -35,7 +35,7 @@ export class LunarLanderGame {
   private showDebugInfo: boolean = true;
   private showNarrowPassages: boolean = false;
 
-  private readonly obstaclesAmount = 10;
+  private obstaclesAmount = 10;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -896,7 +896,14 @@ export class LunarLanderGame {
     this.showNarrowPassages = show;
   }
 
-  // Add a method to regenerate obstacles
+  // Add a method to set the number of obstacles
+  public setObstaclesAmount(amount: number): void {
+    // Ensure amount is a positive integer
+    this.obstaclesAmount = Math.max(1, Math.floor(amount));
+    console.log(`Obstacles amount set to ${this.obstaclesAmount}`);
+  }
+
+  // Update the regenerateObstacles method to use the current obstaclesAmount
   public regenerateObstacles(): void {
     // Generate new obstacles
     this.obstacles = this.generateObstacles();
@@ -922,6 +929,6 @@ export class LunarLanderGame {
     // Replan the path with the new obstacles
     this.planPath();
     
-    console.log("Obstacles regenerated");
+    console.log(`Obstacles regenerated (${this.obstaclesAmount} obstacles)`);
   }
 } 

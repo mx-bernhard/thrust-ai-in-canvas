@@ -87,6 +87,34 @@ regenerateObstaclesButton.addEventListener('click', () => {
 })
 controlsContainer.appendChild(regenerateObstaclesButton)
 
+// Create a container for the obstacles amount input
+const obstaclesInputContainer = document.createElement('div')
+obstaclesInputContainer.className = 'input-container'
+
+// Add a label for the input
+const obstaclesLabel = document.createElement('label')
+obstaclesLabel.textContent = 'Obstacles: '
+obstaclesLabel.style.marginRight = '5px'
+obstaclesInputContainer.appendChild(obstaclesLabel)
+
+// Add an input for the number of obstacles
+const obstaclesInput = document.createElement('input')
+obstaclesInput.type = 'number'
+obstaclesInput.min = '1'
+obstaclesInput.max = '30'
+obstaclesInput.value = '10' // Default value
+
+// Update the obstacles amount when the input changes
+obstaclesInput.addEventListener('change', () => {
+  const amount = parseInt(obstaclesInput.value, 10)
+  if (!isNaN(amount)) {
+    game.setObstaclesAmount(amount)
+  }
+})
+
+obstaclesInputContainer.appendChild(obstaclesInput)
+controlsContainer.appendChild(obstaclesInputContainer)
+
 // Toggle path button
 const togglePathButton = document.createElement('button')
 togglePathButton.textContent = 'Hide Path'
