@@ -184,7 +184,7 @@ export class DDPController {
       angle: state.angle + state.angularVelocity * this.dt,
       angularVelocity: state.angularVelocity + control.torque * this.dt,
       thrust: control.thrust,
-      fuel: state.fuel - control.thrust * this.dt,
+      fuel: typeof state.fuel === 'number' ? state.fuel - control.thrust * this.dt : 1000,
       isCollided: false
     };
   }

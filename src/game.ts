@@ -1,4 +1,4 @@
-import { GameState, ControlInput, TerrainPoint, GameConfig, Vector2D, Rectangle } from './types';
+import { GameState, GameConfig, Vector2D, Rectangle } from './types';
 import { DDPController } from './ddp';
 import { RRTPathPlanner } from './rrt';
 
@@ -104,14 +104,6 @@ export class LunarLanderGame {
       // Re-plan path after resize
       this.planPath();
     });
-  }
-
-  private relativeToAbsolute(pos: Vector2D): Vector2D {
-    // Ensure we're using the correct canvas dimensions
-    return {
-      x: pos.x,
-      y: pos.y
-    };
   }
 
   private setupCanvas() {
@@ -557,8 +549,8 @@ export class LunarLanderGame {
     
     const control = this.controller.computeControl(this.state);
     
-    // Store previous position for collision detection
-    const prevPosition = { ...this.state.position };
+    // Store previous position for collision detection (used for debugging)
+    // const prevPosition = { ...this.state.position };
     
     // Update state based on physics with bounds checking
     const cosAngle = Math.cos(this.state.angle);
@@ -785,7 +777,7 @@ export class LunarLanderGame {
   private drawNarrowPassages(ctx: CanvasRenderingContext2D): void {
     if (!this.obstacles || this.obstacles.length < 2) return;
     
-    const shipRadius = 15; // Same as in RRT
+    // const shipRadius = 15; // Same as in RRT
     const minPassageWidth = 40; // Same as in RRT
     
     // Check for narrow passages between obstacles
