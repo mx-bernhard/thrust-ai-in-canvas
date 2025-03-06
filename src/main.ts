@@ -2,119 +2,132 @@ import './style.css'
 import { LunarLanderGame } from './game'
 import { GameConfig } from './types'
 
+// Get the app container
+const appContainer = document.getElementById('app')
+if (!appContainer) {
+  console.error('App container not found')
+  throw new Error('App container not found')
+}
+
+// Create canvas
+const canvas = document.createElement('canvas')
+canvas.width = window.innerWidth * 0.9 // 90% of window width
+canvas.height = window.innerHeight * 0.7 // 70% of window height
+appContainer.appendChild(canvas)
+
 // Game configuration
-const config: GameConfig = {
-  gravity: 9.81,
-  thrustMax: 25,
-  torqueMax: 5,
+const gameConfig: GameConfig = {
+  gravity: { x: 0, y: 0.1 },
+  thrustMax: 20,
+  torqueMax: 10.0,
   fuelMax: 1000,
-  fuelConsumption: 1,
-  targetPosition: {
-    x: 0.7,
-    y: 0.6
-  },
+  fuelConsumption: 0.1,
   initialState: {
-    position: {
-      x: 0.2,
-      y: 0.2
-    },
-    velocity: {
-      x: 0,
-      y: 0
-    },
+    position: { x: 100, y: 100 }, // Fixed position in upper left corner
+    velocity: { x: 0, y: 0 },
     angle: 0,
     angularVelocity: 0,
     thrust: 0,
     fuel: 1000,
     isCollided: false
-  }
+  },
+  targetPosition: { x: canvas.width - 100, y: canvas.height - 100 }, // Fixed position in bottom right
+  numObstacles: 6 // Reduced number of obstacles
 }
 
-// Initialize game
-let game: LunarLanderGame | null = null
+// Create game instance
+const game = new LunarLanderGame(canvas, gameConfig)
 
-// Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement
-  if (!canvas) {
-    console.error('Canvas element not found')
-    return
-  }
+// Force the ship to start in the upper left quadrant
+game.reset()
 
-  // Clean up existing game if any
-  if (game) {
-    game.cleanup()
-  }
+// Create UI controls
+const controlsContainer = document.createElement('div')
+controlsContainer.className = 'controls'
+appContainer.appendChild(controlsContainer)
 
-  // Create new game instance
-  game = new LunarLanderGame(canvas, config)
-
-  // Set up button controls
-  const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement
-  const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
-  const stepBtn = document.getElementById('stepBtn') as HTMLButtonElement
-  
-  // Add path planning controls
-  const togglePathBtn = document.createElement('button')
-  togglePathBtn.textContent = 'Toggle Path'
-  togglePathBtn.id = 'togglePathBtn'
-  
-  const replanPathBtn = document.createElement('button')
-  replanPathBtn.textContent = 'Replan Path'
-  replanPathBtn.id = 'replanPathBtn'
-  
-  // Add new buttons to controls
-  const controlsDiv = document.querySelector('.controls')
-  if (controlsDiv) {
-    controlsDiv.appendChild(togglePathBtn)
-    controlsDiv.appendChild(replanPathBtn)
-  }
-
-  if (pauseBtn && resetBtn && stepBtn && togglePathBtn && replanPathBtn) {
-    pauseBtn.addEventListener('click', () => {
-      if (game) {
-        game.togglePause()
-        pauseBtn.textContent = pauseBtn.textContent === 'Pause' ? 'Continue' : 'Pause'
-      }
-    })
-
-    resetBtn.addEventListener('click', () => {
-      if (game) {
-        game.reset()
-        pauseBtn.textContent = 'Pause'
-      }
-    })
-
-    stepBtn.addEventListener('click', () => {
-      if (game) {
-        game.step()
-      }
-    })
-    
-    // Add event listeners for path planning controls
-    togglePathBtn.addEventListener('click', () => {
-      if (game) {
-        game.togglePathVisibility()
-      }
-    })
-    
-    replanPathBtn.addEventListener('click', () => {
-      if (game) {
-        game.replanPath()
-      }
-    })
-
-    // Start game loop
-    game.gameLoop()
+// Pause/Resume button
+const pauseButton = document.createElement('button')
+pauseButton.textContent = 'Pause'
+pauseButton.addEventListener('click', () => {
+  if (pauseButton.textContent === 'Pause') {
+    game.pause()
+    pauseButton.textContent = 'Resume'
   } else {
-    console.error('Control buttons not found')
+    game.resume()
+    pauseButton.textContent = 'Pause'
   }
 })
+controlsContainer.appendChild(pauseButton)
 
-// Clean up on page unload
-window.addEventListener('unload', () => {
-  if (game) {
-    game.cleanup()
-    game = null
+// Step button (for debugging)
+const stepButton = document.createElement('button')
+stepButton.textContent = 'Step'
+stepButton.addEventListener('click', () => {
+  game.step()
+})
+controlsContainer.appendChild(stepButton)
+
+// Reset button
+const resetButton = document.createElement('button')
+resetButton.textContent = 'Reset'
+resetButton.addEventListener('click', () => {
+  game.reset()
+  if (pauseButton.textContent === 'Resume') {
+    pauseButton.textContent = 'Pause'
   }
 })
+controlsContainer.appendChild(resetButton)
+
+// Toggle path button
+const togglePathButton = document.createElement('button')
+togglePathButton.textContent = 'Hide Path'
+togglePathButton.addEventListener('click', () => {
+  if (togglePathButton.textContent === 'Hide Path') {
+    game.togglePath(false)
+    togglePathButton.textContent = 'Show Path'
+  } else {
+    game.togglePath(true)
+    togglePathButton.textContent = 'Hide Path'
+  }
+})
+controlsContainer.appendChild(togglePathButton)
+
+// Plan path button
+const planPathButton = document.createElement('button')
+planPathButton.textContent = 'Plan Path'
+planPathButton.addEventListener('click', () => {
+  game.planPath()
+})
+controlsContainer.appendChild(planPathButton)
+
+// Toggle debug info button
+const toggleDebugButton = document.createElement('button')
+toggleDebugButton.textContent = 'Hide Debug Info'
+toggleDebugButton.addEventListener('click', () => {
+  if (toggleDebugButton.textContent === 'Hide Debug Info') {
+    game.toggleDebugInfo(false)
+    toggleDebugButton.textContent = 'Show Debug Info'
+  } else {
+    game.toggleDebugInfo(true)
+    toggleDebugButton.textContent = 'Hide Debug Info'
+  }
+})
+controlsContainer.appendChild(toggleDebugButton)
+
+// Toggle narrow passages visualization button
+const toggleNarrowPassagesButton = document.createElement('button')
+toggleNarrowPassagesButton.textContent = 'Show Narrow Passages'
+toggleNarrowPassagesButton.addEventListener('click', () => {
+  if (toggleNarrowPassagesButton.textContent === 'Show Narrow Passages') {
+    game.toggleNarrowPassagesVisualization(true)
+    toggleNarrowPassagesButton.textContent = 'Hide Narrow Passages'
+  } else {
+    game.toggleNarrowPassagesVisualization(false)
+    toggleNarrowPassagesButton.textContent = 'Show Narrow Passages'
+  }
+})
+controlsContainer.appendChild(toggleNarrowPassagesButton)
+
+// Start the game
+game.start()

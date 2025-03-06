@@ -16,7 +16,7 @@ export interface GameState {
   angle: number;
   angularVelocity: number;
   thrust: number;
-  fuel: number;
+  fuel?: number;
   isCollided: boolean;
 }
 
@@ -31,11 +31,12 @@ export interface TerrainPoint {
 }
 
 export interface GameConfig {
-  gravity: number;
+  gravity: Vector2D;
   thrustMax: number;
   torqueMax: number;
-  fuelMax: number;
-  fuelConsumption: number;
+  fuelMax?: number;
+  fuelConsumption?: number;
   targetPosition: Vector2D;
   initialState: GameState;
+  numObstacles?: number;
 } 

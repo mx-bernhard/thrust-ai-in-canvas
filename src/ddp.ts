@@ -11,6 +11,12 @@ export class DDPController {
   private readonly obstacles: Rectangle[];
   private readonly canvasWidth: number;
   private readonly canvasHeight: number;
+  private readonly velocityWeight = 1
+  private readonly angularVelocityWeight = 0.1
+  private readonly boundaryMargin = 50; // Safety margin from boundaries
+  private readonly boundaryWeight = 9;
+  private readonly obstacleMargin = 100; // Safety margin around obstacles
+  private readonly obstacleWeight = 1.5; // Weight for obstacle avoidance
 
   constructor(
     gravity: number, 
@@ -31,8 +37,6 @@ export class DDPController {
   }
 
   private boundaryAvoidanceCost(position: Vector2D): number {
-    const margin = 50; // Safety margin from boundaries
-    const boundaryWeight = 9;
     let totalCost = 0;
 
     // Distance to each boundary
@@ -42,25 +46,23 @@ export class DDPController {
     const bottomDist = this.canvasHeight - position.y;
 
     // Add quadratic costs when within margin of any boundary
-    if (leftDist < margin) {
-      totalCost += boundaryWeight * Math.pow(margin - leftDist, 2);
+    if (leftDist < this.boundaryMargin) {
+      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - leftDist, 2);
     }
-    if (rightDist < margin) {
-      totalCost += boundaryWeight * Math.pow(margin - rightDist, 2);
+    if (rightDist < this.boundaryMargin) {
+      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - rightDist, 2);
     }
-    if (topDist < margin) {
-      totalCost += boundaryWeight * Math.pow(margin - topDist, 2);
+    if (topDist < this.boundaryMargin) {
+      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - topDist, 2);
     }
-    if (bottomDist < margin) {
-      totalCost += boundaryWeight * Math.pow(margin - bottomDist, 2);
+    if (bottomDist < this.boundaryMargin) {
+      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - bottomDist, 2);
     }
 
     return totalCost;
   }
 
   private obstacleAvoidanceCost(position: Vector2D): number {
-    const margin = 100; // Safety margin around obstacles
-    const obstacleWeight = 1.0; // Weight for obstacle avoidance
     let totalCost = 0;
 
     for (const obstacle of this.obstacles) {
@@ -70,8 +72,8 @@ export class DDPController {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Add cost if within margin
-      if (distance < margin) {
-        totalCost += obstacleWeight * Math.pow(margin - distance, 2);
+      if (distance < this.obstacleMargin) {
+        totalCost += this.obstacleWeight * Math.pow(this.obstacleMargin - distance, 2);
       }
     }
 
@@ -83,14 +85,12 @@ export class DDPController {
     const positionCost = 
       Math.pow(state.position.x - this.targetPosition.x, 2) +
       Math.pow(state.position.y - this.targetPosition.y, 2);
-    const velocityWeight = 1
-    const angularVelocityWeight = 0.1
     // Movement costs
     const velocityCost = 
-      Math.pow(state.velocity.x * velocityWeight, 2) +
-      Math.pow(state.velocity.y * velocityWeight, 2);
+      Math.pow(state.velocity.x * this.velocityWeight, 2) +
+      Math.pow(state.velocity.y * this.velocityWeight, 2);
     const angleCost = Math.pow(state.angle, 2);
-    const angularVelocityCost = Math.pow(state.angularVelocity * angularVelocityWeight, 2);
+    const angularVelocityCost = Math.pow(state.angularVelocity * this.angularVelocityWeight, 2);
 
     // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);

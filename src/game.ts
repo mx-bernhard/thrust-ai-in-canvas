@@ -11,7 +11,7 @@ export class LunarLanderGame {
   private pathPlanner: RRTPathPlanner;
   private waypoints: Vector2D[] = [];
   private currentWaypointIndex: number = 0;
-  private waypointThreshold: number = 30;
+  private waypointThreshold: number = 70;
   private config: GameConfig;
   private isPaused: boolean = false;
   private isStepMode: boolean = false;
@@ -32,6 +32,10 @@ export class LunarLanderGame {
     lastUpdateTime: number;
   };
   private debugUpdateInterval: number = 500; // Update debug info every 500ms (2 times per second)
+  private showDebugInfo: boolean = true;
+  private showNarrowPassages: boolean = false;
+
+  private readonly obstaclesAmount = 10;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -54,21 +58,24 @@ export class LunarLanderGame {
     
     this.setupCanvas();
     
-    // Convert relative positions to absolute
-    const absoluteState = {
+    // Use initial state directly without conversion
+    const initialState = {
       ...config.initialState,
-      position: this.relativeToAbsolute(config.initialState.position),
+      position: { ...config.initialState.position }, // Create a copy to avoid reference issues
       isCollided: false
     };
     
-    this.state = absoluteState;
-    this.targetPosition = this.relativeToAbsolute(config.targetPosition);
+    this.state = initialState;
+    this.targetPosition = { ...config.targetPosition }; // Use target position directly
+    
+    console.log("Initial ship position:", this.state.position);
+    console.log("Target position:", this.targetPosition);
     
     // Initialize obstacles before controller
     this.obstacles = this.generateObstacles();
     
     this.controller = new DDPController(
-      config.gravity,
+      config.gravity.y,
       config.thrustMax,
       config.torqueMax,
       this.targetPosition,
@@ -90,9 +97,9 @@ export class LunarLanderGame {
     // Handle window resize
     window.addEventListener('resize', () => {
       this.setupCanvas();
-      // Update positions on resize
-      this.state.position = this.relativeToAbsolute(config.initialState.position);
-      this.targetPosition = this.relativeToAbsolute(config.targetPosition);
+      // Update positions on resize - use direct values
+      this.state.position = { ...config.initialState.position };
+      this.targetPosition = { ...config.targetPosition };
       this.obstacles = this.generateObstacles();
       // Re-plan path after resize
       this.planPath();
@@ -100,20 +107,20 @@ export class LunarLanderGame {
   }
 
   private relativeToAbsolute(pos: Vector2D): Vector2D {
+    // Ensure we're using the correct canvas dimensions
     return {
-      x: pos.x * (this.canvas.width / this.scale),
-      y: pos.y * (this.canvas.height / this.scale)
+      x: pos.x,
+      y: pos.y
     };
   }
 
   private setupCanvas() {
+    // Use the canvas dimensions as they are (already set in main.ts)
     this.scale = window.devicePixelRatio || 1;
-    this.canvas.width = window.innerWidth * 0.8 * this.scale;
-    this.canvas.height = window.innerHeight * 0.8 * this.scale;
-    this.canvas.style.width = window.innerWidth * 0.8 + 'px';
-    this.canvas.style.height = window.innerHeight * 0.8 + 'px';
+    
+    // Don't modify the canvas dimensions here, they're set in main.ts
+    // Just set up the context scaling
     this.ctx.scale(this.scale, this.scale);
-    this.canvas.style.border = '1px solid black';
   }
 
   private generateObstacles(): Rectangle[] {
@@ -146,26 +153,19 @@ export class LunarLanderGame {
     const regions = [
       // Middle region
       {
-        x: canvasWidth * 0.1,
-        y: canvasHeight * 0.1,
-        w: canvasWidth * 0.8,
-        h: canvasHeight * 0.8
+        x: canvasWidth * 0,
+        y: canvasHeight * 0,
+        w: canvasWidth * 1,
+        h: canvasHeight * 1
       },
-      // Path to target
-      {
-        x: canvasWidth * 0.5,
-        y: canvasHeight * 0.4,
-        w: canvasWidth * 0.3,
-        h: canvasHeight * 0.3
-      }
     ];
 
     for (const region of regions) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < this.obstaclesAmount; i++) {
         let newRect: Rectangle;
         let overlapping: boolean;
         let attempts = 0;
-        const maxAttempts = 1000;
+        const maxAttempts = 100;
         
         do {
           overlapping = false;
@@ -278,16 +278,18 @@ export class LunarLanderGame {
 
   private checkCollision(): boolean {
     // Check collision with boundaries
-    const boundaryMargin = 10;
-    if (this.state.position.x < boundaryMargin ||
+    const boundaryMargin = 20; // Match the value in handleCollision
+    
+    if (this.state.position.x < boundaryMargin || 
         this.state.position.x > this.canvas.width / this.scale - boundaryMargin ||
-        this.state.position.y < boundaryMargin ||
+        this.state.position.y < boundaryMargin || 
         this.state.position.y > this.canvas.height / this.scale - boundaryMargin) {
       return true;
     }
     
     // Check collision with obstacles
-    const landerRadius = 10;
+    const landerRadius = 15; // Match the value in handleCollision
+    
     for (const obstacle of this.obstacles) {
       // Calculate closest point on rectangle to lander
       const closestX = Math.max(obstacle.x, Math.min(this.state.position.x, obstacle.x + obstacle.width));
@@ -312,11 +314,17 @@ export class LunarLanderGame {
     
     // Coefficient of restitution (elasticity of collision)
     // 1.0 = perfectly elastic, 0.0 = perfectly inelastic
-    const restitution = 0.8;
+    const restitution = 0.6; // Reduced from 0.8 for more energy loss
     
     // Check collision with boundaries
-    const boundaryMargin = 10;
+    const boundaryMargin = 20; // Increased from 10 for better visibility
     let collisionHandled = false;
+    
+    // Store original velocity for debugging
+    const originalVelocity = { 
+      x: this.state.velocity.x, 
+      y: this.state.velocity.y 
+    };
     
     if (this.state.position.x < boundaryMargin) {
       // Left boundary collision - reflect x velocity
@@ -344,12 +352,23 @@ export class LunarLanderGame {
     
     // If boundary collision was handled, don't check obstacles
     if (collisionHandled) {
+      // Ensure minimum velocity after collision to prevent getting stuck
+      const minVelocity = 0.1;
+      const currentSpeed = Math.hypot(this.state.velocity.x, this.state.velocity.y);
+      
+      if (currentSpeed < minVelocity) {
+        // Apply a small random velocity to prevent getting stuck
+        const angle = Math.random() * Math.PI * 2;
+        this.state.velocity.x = Math.cos(angle) * minVelocity;
+        this.state.velocity.y = Math.sin(angle) * minVelocity;
+      }
+      
       this.flashCollision();
       return;
     }
     
     // Check collision with obstacles
-    const landerRadius = 10; // Approximate lander radius
+    const landerRadius = 15; // Increased from 10 for better collision detection
     for (const obstacle of this.obstacles) {
       // Calculate closest point on rectangle to lander
       const closestX = Math.max(obstacle.x, Math.min(this.state.position.x, obstacle.x + obstacle.width));
@@ -366,8 +385,8 @@ export class LunarLanderGame {
         const ny = dy / distance;
         
         // Move lander outside obstacle (prevent penetration)
-        this.state.position.x = closestX + nx * landerRadius;
-        this.state.position.y = closestY + ny * landerRadius;
+        this.state.position.x = closestX + nx * (landerRadius + 1); // Add 1 pixel extra to prevent sticking
+        this.state.position.y = closestY + ny * (landerRadius + 1);
         
         // Calculate relative velocity along normal
         const velAlongNormal = 
@@ -399,6 +418,17 @@ export class LunarLanderGame {
           this.state.velocity.x -= friction * velAlongTangent * tx;
           this.state.velocity.y -= friction * velAlongTangent * ty;
           
+          // Ensure minimum velocity after collision to prevent getting stuck
+          const minVelocity = 0.1;
+          const currentSpeed = Math.hypot(this.state.velocity.x, this.state.velocity.y);
+          
+          if (currentSpeed < minVelocity) {
+            // Scale up velocity to minimum
+            const scale = minVelocity / currentSpeed;
+            this.state.velocity.x *= scale;
+            this.state.velocity.y *= scale;
+          }
+          
           // Collision was handled
           collisionHandled = true;
           break;
@@ -408,6 +438,7 @@ export class LunarLanderGame {
     
     // Flash the lander to indicate collision
     if (collisionHandled) {
+      console.log(`Velocity before: (${originalVelocity.x.toFixed(2)}, ${originalVelocity.y.toFixed(2)}), after: (${this.state.velocity.x.toFixed(2)}, ${this.state.velocity.y.toFixed(2)})`);
       this.flashCollision();
     }
   }
@@ -452,7 +483,7 @@ export class LunarLanderGame {
     
     // Background for debug panel
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(10, 10, 250, 270);
+    this.ctx.fillRect(10, 10, 250, 290); // Increased height to accommodate path info
     
     this.ctx.fillStyle = 'white';
     this.ctx.textAlign = 'left';
@@ -491,8 +522,12 @@ export class LunarLanderGame {
     this.ctx.fillText(`Thrust: ${formatValue(this.debugInfo.thrust)} / ${this.config.thrustMax}`, 20, 250);
     this.ctx.fillText(`Torque: ${formatValue(this.debugInfo.torque)}`, 20, 270);
     
-    this.ctx.fillText(`Waypoint: ${this.debugInfo.waypoints.current}/${this.debugInfo.waypoints.total}`, 150, 190);
-    this.ctx.fillText(`Angle: ${formatValue(this.debugInfo.angle)}`, 150, 210);
+    // Add path planning info
+    if (this.waypoints.length > 0) {
+      this.ctx.fillText(`Waypoint: ${this.debugInfo.waypoints.current}/${this.debugInfo.waypoints.total}`, 150, 190);
+      this.ctx.fillText(`Angle: ${formatValue(this.debugInfo.angle)}`, 150, 210);
+      this.ctx.fillText(`Avoiding narrow passages`, 150, 230);
+    }
     
     this.ctx.restore();
   }
@@ -511,7 +546,7 @@ export class LunarLanderGame {
     
     // Update controller target
     this.controller = new DDPController(
-      this.config.gravity,
+      this.config.gravity.y,
       this.config.thrustMax,
       this.config.torqueMax,
       currentWaypoint,
@@ -539,12 +574,20 @@ export class LunarLanderGame {
     this.state.position.x += this.state.velocity.x * dt;
     this.state.position.y += this.state.velocity.y * dt;
     this.state.velocity.x += (control.thrust * sinAngle) * dt;
-    this.state.velocity.y += (-control.thrust * cosAngle + this.config.gravity) * dt;
-    //this.state.velocity.y += (control.thrust * cosAngle - this.config.gravity) * dt;
+    this.state.velocity.y += (-control.thrust * cosAngle + this.config.gravity.y) * dt;
     this.state.angle += this.state.angularVelocity * dt;
     this.state.angularVelocity += control.torque * dt;
     this.state.thrust = control.thrust;
-    this.state.fuel = Math.max(0, this.state.fuel - control.thrust * dt);
+    
+    // Initialize fuel if it's undefined
+    if (this.state.fuel === undefined) {
+      this.state.fuel = this.config.fuelMax || 1000;
+    }
+    
+    // Update fuel if fuel consumption is enabled
+    if (this.config.fuelConsumption) {
+      this.state.fuel = Math.max(0, this.state.fuel - control.thrust * dt);
+    }
 
     // Check for collision after movement
     if (this.checkCollision()) {
@@ -560,17 +603,34 @@ export class LunarLanderGame {
   }
 
   public draw() {
+    if (!this.ctx) return;
+    
+    // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Draw path and waypoints if enabled
-    if (this.showPath) {
+    // Draw obstacles
+    this.drawObstacles();
+    
+    // Draw narrow passages if enabled
+    if (this.showNarrowPassages) {
+      this.drawNarrowPassages(this.ctx);
+    }
+    
+    // Draw target
+    this.drawTarget();
+    
+    // Draw path if available and enabled
+    if (this.waypoints.length > 0 && this.showPath) {
       this.drawPath();
     }
     
-    this.drawObstacles();
-    this.drawTarget();
+    // Draw ship
     this.drawLander();
-    this.drawDebugInfo();
+    
+    // Draw debug info if enabled
+    if (this.showDebugInfo) {
+      this.drawDebugInfo();
+    }
   }
 
   private drawPath() {
@@ -632,13 +692,21 @@ export class LunarLanderGame {
   }
 
   public reset() {
-    const absolutePosition = this.relativeToAbsolute(this.config.initialState.position);
+    // Use the initial position directly without conversion
     this.state = {
       ...this.config.initialState,
-      position: absolutePosition,
+      position: { ...this.config.initialState.position }, // Create a copy to avoid reference issues
       isCollided: false
     };
+    
+    console.log("Reset ship position to:", this.state.position);
+    
+    // Reset other game state
     this.isPaused = false;
+    this.isColliding = false;
+    
+    // Re-plan path after reset
+    this.planPath();
   }
 
   // Add cleanup method
@@ -649,17 +717,25 @@ export class LunarLanderGame {
   }
 
   // Plan a path from current position to target
-  private planPath(): void {
-    this.waypoints = this.pathPlanner.findPath(
+  public planPath(): void {
+    // Create path planner
+    this.pathPlanner = new RRTPathPlanner(
+      this.obstacles,
+      this.canvas.width / this.scale,
+      this.canvas.height / this.scale
+    );
+    
+    // Find path from current position to target
+    const path = this.pathPlanner.findPath(
       this.state.position,
       this.targetPosition
     );
     
-    // Reset waypoint tracking
+    // Update waypoints
+    this.waypoints = path;
     this.currentWaypointIndex = 0;
     
-    // Log path information
-    console.log(`RRT: Found path with ${this.waypoints.length} waypoints`);
+    console.log(`Path planned with ${path.length} waypoints`);
   }
 
   // Get current active waypoint
@@ -703,5 +779,128 @@ export class LunarLanderGame {
   // Re-plan path
   public replanPath(): void {
     this.planPath();
+  }
+
+  // Add a method to visualize narrow passages
+  private drawNarrowPassages(ctx: CanvasRenderingContext2D): void {
+    if (!this.obstacles || this.obstacles.length < 2) return;
+    
+    const shipRadius = 15; // Same as in RRT
+    const minPassageWidth = 40; // Same as in RRT
+    
+    // Check for narrow passages between obstacles
+    for (let i = 0; i < this.obstacles.length; i++) {
+      for (let j = i + 1; j < this.obstacles.length; j++) {
+        const obstacle1 = this.obstacles[i];
+        const obstacle2 = this.obstacles[j];
+        
+        // Find closest points between obstacles
+        const edges1 = [
+          { start: { x: obstacle1.x, y: obstacle1.y }, end: { x: obstacle1.x + obstacle1.width, y: obstacle1.y } },
+          { start: { x: obstacle1.x + obstacle1.width, y: obstacle1.y }, end: { x: obstacle1.x + obstacle1.width, y: obstacle1.y + obstacle1.height } },
+          { start: { x: obstacle1.x + obstacle1.width, y: obstacle1.y + obstacle1.height }, end: { x: obstacle1.x, y: obstacle1.y + obstacle1.height } },
+          { start: { x: obstacle1.x, y: obstacle1.y + obstacle1.height }, end: { x: obstacle1.x, y: obstacle1.y } }
+        ];
+        
+        const edges2 = [
+          { start: { x: obstacle2.x, y: obstacle2.y }, end: { x: obstacle2.x + obstacle2.width, y: obstacle2.y } },
+          { start: { x: obstacle2.x + obstacle2.width, y: obstacle2.y }, end: { x: obstacle2.x + obstacle2.width, y: obstacle2.y + obstacle2.height } },
+          { start: { x: obstacle2.x + obstacle2.width, y: obstacle2.y + obstacle2.height }, end: { x: obstacle2.x, y: obstacle2.y + obstacle2.height } },
+          { start: { x: obstacle2.x, y: obstacle2.y + obstacle2.height }, end: { x: obstacle2.x, y: obstacle2.y } }
+        ];
+        
+        let minDistance = Infinity;
+        let closestPoint1 = { x: 0, y: 0 };
+        let closestPoint2 = { x: 0, y: 0 };
+        
+        // Check all edge combinations
+        for (const edge1 of edges1) {
+          for (const edge2 of edges2) {
+            // Sample points along edges
+            const samples1 = 5;
+            const samples2 = 5;
+            
+            for (let s1 = 0; s1 <= samples1; s1++) {
+              const t1 = s1 / samples1;
+              const point1 = {
+                x: edge1.start.x + t1 * (edge1.end.x - edge1.start.x),
+                y: edge1.start.y + t1 * (edge1.end.y - edge1.start.y)
+              };
+              
+              for (let s2 = 0; s2 <= samples2; s2++) {
+                const t2 = s2 / samples2;
+                const point2 = {
+                  x: edge2.start.x + t2 * (edge2.end.x - edge2.start.x),
+                  y: edge2.start.y + t2 * (edge2.end.y - edge2.start.y)
+                };
+                
+                const dx = point1.x - point2.x;
+                const dy = point1.y - point2.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  closestPoint1 = { ...point1 };
+                  closestPoint2 = { ...point2 };
+                }
+              }
+            }
+          }
+        }
+        
+        // If distance is less than minimum passage width, highlight it
+        if (minDistance < minPassageWidth) {
+          ctx.save();
+          
+          // Draw line between closest points
+          ctx.beginPath();
+          ctx.moveTo(closestPoint1.x, closestPoint1.y);
+          ctx.lineTo(closestPoint2.x, closestPoint2.y);
+          ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Draw distance text
+          const midX = (closestPoint1.x + closestPoint2.x) / 2;
+          const midY = (closestPoint1.y + closestPoint2.y) / 2;
+          ctx.fillStyle = 'red';
+          ctx.font = '12px Arial';
+          ctx.fillText(`${minDistance.toFixed(1)}px`, midX, midY);
+          
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  // Public methods for UI controls
+  public start(): void {
+    // Initialize game loop
+    this.gameLoop();
+    
+    // Plan initial path after a short delay to ensure everything is initialized
+    setTimeout(() => {
+      this.planPath();
+    }, 500);
+  }
+
+  public pause(): void {
+    this.isPaused = true;
+  }
+
+  public resume(): void {
+    this.isPaused = false;
+  }
+
+  public togglePath(show: boolean): void {
+    this.showPath = show;
+  }
+
+  public toggleDebugInfo(show: boolean): void {
+    this.showDebugInfo = show;
+  }
+
+  public toggleNarrowPassagesVisualization(show: boolean): void {
+    this.showNarrowPassages = show;
   }
 } 
