@@ -20,7 +20,7 @@ export class DDPController {
   private readonly collisionCourseWeight = 25.0; // Weight for collision course avoidance
   private readonly collisionTimeHorizon = 5.0; // Time horizon for collision prediction (seconds)
   private readonly shipRadius = 15; // Ship radius for collision detection
-  private readonly positionWeight = 3; // Ship radius for collision detection
+  private readonly positionWeight = 15; // Ship radius for collision detection
   constructor(
     gravity: number,
     thrustMax: number,

@@ -41,7 +41,7 @@ export class LunarLanderGame {
   private obstaclesAmount = 10;
 
   // Constant for the lookahead distance
-  private readonly waypointLookaheadDistance: number = 150; // Distance to look ahead on the path
+  private readonly waypointLookaheadDistance: number = 50; // Distance to look ahead on the path
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
