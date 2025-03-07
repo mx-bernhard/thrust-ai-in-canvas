@@ -25,8 +25,10 @@ export class RRTPathPlanner {
   }
 
   // Find a path from start to goal
-  public findPath(start: Vector2D, goal: Vector2D): Vector2D[] {
+  public findPath(startArg: Vector2D, goalArg: Vector2D): Vector2D[] {
     // Initialize tree with start node
+    const start = { ...startArg };
+    const goal = { ...goalArg };
     const startNode: RRTNode = { position: start, parent: null };
     const tree: RRTNode[] = [startNode];
 
