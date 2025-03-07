@@ -14,9 +14,9 @@ export class RRTPathPlanner {
   private readonly obstacles: Rectangle[];
   private readonly width: number;
   private readonly height: number;
-  private readonly boundaryMargin: number = 20;
+  private readonly boundaryMargin: number = 0;
   private readonly shipRadius: number = 15; // Ship radius for collision checking
-  private readonly minPassageWidth: number = 60; // Minimum width for passages
+  private readonly minPassageWidth: number = 30; // Minimum width for passages
 
   constructor(obstacles: Rectangle[], width: number, height: number) {
     this.obstacles = obstacles;
