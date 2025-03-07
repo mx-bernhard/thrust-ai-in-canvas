@@ -1,4 +1,4 @@
-import { GameState, ControlInput, Vector2D, Rectangle } from './types';
+import { GameState, ControlInput, Vector2D, Rectangle } from "./types";
 
 export class DDPController {
   private readonly dt = 0.016; // 60fps
@@ -11,8 +11,8 @@ export class DDPController {
   private readonly obstacles: Rectangle[];
   private readonly canvasWidth: number;
   private readonly canvasHeight: number;
-  private readonly velocityWeight = 1
-  private readonly angularVelocityWeight = 0.1
+  private readonly velocityWeight = 1;
+  private readonly angularVelocityWeight = 0.1;
   private readonly boundaryMargin = 50; // Safety margin from boundaries
   private readonly boundaryWeight = 9;
   private readonly obstacleMargin = 0; // Safety margin around obstacles
@@ -20,14 +20,15 @@ export class DDPController {
   private readonly collisionCourseWeight = 25.0; // Weight for collision course avoidance
   private readonly collisionTimeHorizon = 5.0; // Time horizon for collision prediction (seconds)
   private readonly shipRadius = 15; // Ship radius for collision detection
+  private readonly positionWeight = 3; // Ship radius for collision detection
   constructor(
-    gravity: number, 
-    thrustMax: number, 
-    torqueMax: number, 
+    gravity: number,
+    thrustMax: number,
+    torqueMax: number,
     targetPosition: Vector2D,
     obstacles: Rectangle[],
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
   ) {
     this.gravity = gravity;
     this.thrustMax = thrustMax;
@@ -41,16 +42,16 @@ export class DDPController {
   // Add a method to calculate collision course cost
   private collisionCourseCost(state: GameState): number {
     if (this.obstacles.length === 0) return 0;
-    
+
     const position = state.position;
     const velocity = state.velocity;
-    
+
     // If velocity is very small, no collision course
     const speed = Math.hypot(velocity.x, velocity.y);
     if (speed < 0.1) return 0;
-    
+
     let totalCost = 0;
-    
+
     // Check for collision course with each obstacle
     for (const obstacle of this.obstacles) {
       // Expand obstacle by ship radius
@@ -58,87 +59,114 @@ export class DDPController {
         x: obstacle.x - this.shipRadius,
         y: obstacle.y - this.shipRadius,
         width: obstacle.width + 2 * this.shipRadius,
-        height: obstacle.height + 2 * this.shipRadius
+        height: obstacle.height + 2 * this.shipRadius,
       };
-      
+
       // Calculate time to potential collision
       // Project the velocity vector and see where it intersects with the obstacle
-      
+
       // Normalized velocity direction
       const vx = velocity.x / speed;
       const vy = velocity.y / speed;
-      
+
       // Check intersection with each edge of the expanded obstacle
       const edges = [
         // Top edge
-        { p1: { x: expandedObstacle.x, y: expandedObstacle.y }, 
-          p2: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y } },
+        {
+          p1: { x: expandedObstacle.x, y: expandedObstacle.y },
+          p2: {
+            x: expandedObstacle.x + expandedObstacle.width,
+            y: expandedObstacle.y,
+          },
+        },
         // Right edge
-        { p1: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y }, 
-          p2: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y + expandedObstacle.height } },
+        {
+          p1: {
+            x: expandedObstacle.x + expandedObstacle.width,
+            y: expandedObstacle.y,
+          },
+          p2: {
+            x: expandedObstacle.x + expandedObstacle.width,
+            y: expandedObstacle.y + expandedObstacle.height,
+          },
+        },
         // Bottom edge
-        { p1: { x: expandedObstacle.x + expandedObstacle.width, y: expandedObstacle.y + expandedObstacle.height }, 
-          p2: { x: expandedObstacle.x, y: expandedObstacle.y + expandedObstacle.height } },
+        {
+          p1: {
+            x: expandedObstacle.x + expandedObstacle.width,
+            y: expandedObstacle.y + expandedObstacle.height,
+          },
+          p2: {
+            x: expandedObstacle.x,
+            y: expandedObstacle.y + expandedObstacle.height,
+          },
+        },
         // Left edge
-        { p1: { x: expandedObstacle.x, y: expandedObstacle.y + expandedObstacle.height }, 
-          p2: { x: expandedObstacle.x, y: expandedObstacle.y } }
+        {
+          p1: {
+            x: expandedObstacle.x,
+            y: expandedObstacle.y + expandedObstacle.height,
+          },
+          p2: { x: expandedObstacle.x, y: expandedObstacle.y },
+        },
       ];
-      
+
       // Find minimum time to collision with any edge
       let minTimeToCollision = Infinity;
-      
+
       for (const edge of edges) {
         // Ray-line segment intersection
         const x1 = edge.p1.x - position.x;
         const y1 = edge.p1.y - position.y;
         const x2 = edge.p2.x - position.x;
         const y2 = edge.p2.y - position.y;
-        
+
         // Cross products to determine if ray intersects line segment
         const cross1 = x1 * vy - y1 * vx;
         const cross2 = x2 * vy - y2 * vx;
-        
+
         // If signs are different, there's an intersection
         if (cross1 * cross2 <= 0) {
           // Calculate intersection point
           const dx = x2 - x1;
           const dy = y2 - y1;
-          
+
           // Avoid division by zero
           if (Math.abs(dx * vy - dy * vx) < 1e-6) continue;
-          
+
           // Parameter along the line segment
           const t = (x1 * vy - y1 * vx) / (dy * vx - dx * vy);
-          
+
           // Ensure intersection is on the line segment
           if (t < 0 || t > 1) continue;
-          
+
           // Intersection point
           const ix = edge.p1.x + t * dx;
           const iy = edge.p1.y + t * dy;
-          
+
           // Distance to intersection
           const dist = Math.hypot(ix - position.x, iy - position.y);
-          
+
           // Time to collision
           const timeToCollision = dist / speed;
-          
+
           // Update minimum time if this is smaller
           if (timeToCollision < minTimeToCollision && timeToCollision > 0) {
             minTimeToCollision = timeToCollision;
           }
         }
       }
-      
+
       // If we found a collision within our time horizon
       if (minTimeToCollision < this.collisionTimeHorizon) {
         // Cost is higher for imminent collisions and lower for distant ones
         // Use inverse relationship with time to collision
-        const timeFactor = 1.0 - (minTimeToCollision / this.collisionTimeHorizon);
-        totalCost += this.collisionCourseWeight * Math.pow(timeFactor, 2) * 1000;
+        const timeFactor = 1.0 - minTimeToCollision / this.collisionTimeHorizon;
+        totalCost +=
+          this.collisionCourseWeight * Math.pow(timeFactor, 2) * 1000;
       }
     }
-    
+
     return totalCost;
   }
 
@@ -153,16 +181,20 @@ export class DDPController {
 
     // Add quadratic costs when within margin of any boundary
     if (leftDist < this.boundaryMargin) {
-      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - leftDist, 2);
+      totalCost +=
+        this.boundaryWeight * Math.pow(this.boundaryMargin - leftDist, 2);
     }
     if (rightDist < this.boundaryMargin) {
-      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - rightDist, 2);
+      totalCost +=
+        this.boundaryWeight * Math.pow(this.boundaryMargin - rightDist, 2);
     }
     if (topDist < this.boundaryMargin) {
-      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - topDist, 2);
+      totalCost +=
+        this.boundaryWeight * Math.pow(this.boundaryMargin - topDist, 2);
     }
     if (bottomDist < this.boundaryMargin) {
-      totalCost += this.boundaryWeight * Math.pow(this.boundaryMargin - bottomDist, 2);
+      totalCost +=
+        this.boundaryWeight * Math.pow(this.boundaryMargin - bottomDist, 2);
     }
 
     return totalCost;
@@ -173,13 +205,22 @@ export class DDPController {
 
     for (const obstacle of this.obstacles) {
       // Calculate closest point on rectangle to position
-      const dx = Math.max(obstacle.x - position.x, 0, position.x - (obstacle.x + obstacle.width));
-      const dy = Math.max(obstacle.y - position.y, 0, position.y - (obstacle.y + obstacle.height));
+      const dx = Math.max(
+        obstacle.x - position.x,
+        0,
+        position.x - (obstacle.x + obstacle.width),
+      );
+      const dy = Math.max(
+        obstacle.y - position.y,
+        0,
+        position.y - (obstacle.y + obstacle.height),
+      );
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Add cost if within margin
       if (distance < this.obstacleMargin) {
-        totalCost += this.obstacleWeight * Math.pow(this.obstacleMargin - distance, 2);
+        totalCost +=
+          this.obstacleWeight * Math.pow(this.obstacleMargin - distance, 2);
       }
     }
 
@@ -188,20 +229,24 @@ export class DDPController {
 
   private cost(state: GameState): number {
     // Target reaching cost
-    const positionCost = 
-      Math.pow(state.position.x - this.targetPosition.x, 2) +
-      Math.pow(state.position.y - this.targetPosition.y, 2);
+    const positionCost =
+      this.positionWeight *
+      (Math.pow(state.position.x - this.targetPosition.x, 2) +
+        Math.pow(state.position.y - this.targetPosition.y, 2));
     // Movement costs
-    const velocityCost = 
+    const velocityCost =
       Math.pow(state.velocity.x * this.velocityWeight, 2) +
       Math.pow(state.velocity.y * this.velocityWeight, 2);
     const angleCost = Math.pow(state.angle, 2);
-    const angularVelocityCost = Math.pow(state.angularVelocity * this.angularVelocityWeight, 2);
+    const angularVelocityCost = Math.pow(
+      state.angularVelocity * this.angularVelocityWeight,
+      2,
+    );
 
     // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
     const boundaryCost = this.boundaryAvoidanceCost(state.position);
-    
+
     // New collision course cost
     const collisionCourseCost = this.collisionCourseCost(state);
 
@@ -214,13 +259,14 @@ export class DDPController {
       obstacle: obstacleCost,
       boundary: boundaryCost,
       collisionCourse: collisionCourseCost,
-      total: positionCost + 
-             velocityCost + 
-             angleCost + 
-             angularVelocityCost + 
-             obstacleCost +
-             boundaryCost +
-             collisionCourseCost
+      total:
+        positionCost +
+        velocityCost +
+        angleCost +
+        angularVelocityCost +
+        obstacleCost +
+        boundaryCost +
+        collisionCourseCost,
     };
 
     return this.lastCosts.total;
@@ -244,7 +290,7 @@ export class DDPController {
     obstacle: 0,
     boundary: 0,
     collisionCourse: 0,
-    total: 0
+    total: 0,
   };
 
   // Add a getter to access the costs
@@ -260,12 +306,12 @@ export class DDPController {
     for (let i = 0; i < this.iterations; i++) {
       const testThrust = Math.random() * this.thrustMax;
       const testTorque = (Math.random() * 2 - 1) * this.torqueMax;
-      
+
       let testState = { ...currentState };
       let totalCost = 0;
-      
+
       const testControl = { thrust: testThrust, torque: testTorque };
-      
+
       // Forward simulation
       for (let t = 0; t < this.horizon; t++) {
         testState = this.dynamics(testState, testControl);
@@ -284,21 +330,26 @@ export class DDPController {
   private dynamics(state: GameState, control: ControlInput): GameState {
     const cosAngle = Math.cos(state.angle);
     const sinAngle = Math.sin(state.angle);
-    
+
     return {
       position: {
         x: state.position.x + state.velocity.x * this.dt,
-        y: state.position.y + state.velocity.y * this.dt
+        y: state.position.y + state.velocity.y * this.dt,
       },
       velocity: {
-        x: state.velocity.x + (control.thrust * sinAngle) * this.dt,
-        y: state.velocity.y + (-control.thrust * cosAngle + this.gravity) * this.dt
+        x: state.velocity.x + control.thrust * sinAngle * this.dt,
+        y:
+          state.velocity.y +
+          (-control.thrust * cosAngle + this.gravity) * this.dt,
       },
       angle: state.angle + state.angularVelocity * this.dt,
       angularVelocity: state.angularVelocity + control.torque * this.dt,
       thrust: control.thrust,
-      fuel: typeof state.fuel === 'number' ? state.fuel - control.thrust * this.dt : 1000,
-      isCollided: false
+      fuel:
+        typeof state.fuel === "number"
+          ? state.fuel - control.thrust * this.dt
+          : 1000,
+      isCollided: false,
     };
   }
-} 
+}

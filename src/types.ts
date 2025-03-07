@@ -39,4 +39,4 @@ export interface GameConfig {
   targetPosition: Vector2D;
   initialState: GameState;
   numObstacles?: number;
-} 
+}
