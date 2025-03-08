@@ -1,5 +1,5 @@
 import { GameState, GameConfig, Vector2D, Rectangle } from "./types";
-import { DDPController } from "./ddp";
+import { DDPController, DDPWeights, defaultDdpWeights } from "./ddp";
 import { RRTPathPlanner } from "./rrt";
 import { PathInterpolator } from "./path-interpolation";
 import { distanceBetween } from "./distance-between.ts";
@@ -54,6 +54,19 @@ export class LunarLanderGame {
   // Max distance towards path before replanning
   private readonly maxDistanceToPath: number = 300;
 
+  private controllerWeights: DDPWeights = {
+    velocityWeight: 1,
+    angularVelocityWeight: 0.1,
+    positionWeight: 15,
+    boundaryWeight: 9,
+    boundaryMargin: 50,
+    obstacleWeight: 0,
+    obstacleMargin: 0,
+    collisionCourseWeight: 25.0,
+    collisionTimeHorizon: 5.0,
+    shipRadius: 15,
+  };
+
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -106,15 +119,16 @@ export class LunarLanderGame {
     // Initialize obstacles before controller
     this.obstacles = this.generateObstacles();
 
-    this.controller = new DDPController(
-      config.gravity.y,
-      config.thrustMax,
-      config.torqueMax,
-      this.targetPosition,
-      this.obstacles,
-      this.canvas.width / this.scale,
-      this.canvas.height / this.scale,
-    );
+    this.controller = new DDPController({
+      gravity: config.gravity.y,
+      thrustMax: config.thrustMax,
+      torqueMax: config.torqueMax,
+      targetPosition: this.targetPosition,
+      obstacles: this.obstacles,
+      canvasWidth: this.canvas.width / this.scale,
+      canvasHeight: this.canvas.height / this.scale,
+      weights: this.controllerWeights,
+    });
 
     // Initialize RRT path planner
     this.pathPlanner = new RRTPathPlanner(
@@ -737,15 +751,16 @@ export class LunarLanderGame {
     const currentWaypoint = this.getCurrentWaypoint();
 
     // Update controller target
-    this.controller = new DDPController(
-      this.config.gravity.y,
-      this.config.thrustMax,
-      this.config.torqueMax,
-      currentWaypoint,
-      this.obstacles,
-      this.canvas.width / this.scale,
-      this.canvas.height / this.scale,
-    );
+    this.controller = new DDPController({
+      gravity: this.config.gravity.y,
+      thrustMax: this.config.thrustMax,
+      torqueMax: this.config.torqueMax,
+      targetPosition: currentWaypoint,
+      obstacles: this.obstacles,
+      canvasWidth: this.canvas.width / this.scale,
+      canvasHeight: this.canvas.height / this.scale,
+      weights: this.controllerWeights,
+    });
 
     const control = this.controller.computeControl(this.state);
 
@@ -1178,15 +1193,16 @@ export class LunarLanderGame {
     this.obstacles = this.generateObstacles();
 
     // Update the controller with new obstacles
-    this.controller = new DDPController(
-      this.config.gravity.y,
-      this.config.thrustMax,
-      this.config.torqueMax,
-      this.targetPosition,
-      this.obstacles,
-      this.canvas.width / this.scale,
-      this.canvas.height / this.scale,
-    );
+    this.controller = new DDPController({
+      gravity: this.config.gravity.y,
+      thrustMax: this.config.thrustMax,
+      torqueMax: this.config.torqueMax,
+      targetPosition: this.targetPosition,
+      obstacles: this.obstacles,
+      canvasWidth: this.canvas.width / this.scale,
+      canvasHeight: this.canvas.height / this.scale,
+      weights: this.controllerWeights,
+    });
 
     // Update the path planner with new obstacles
     this.pathPlanner = new RRTPathPlanner(
@@ -1199,5 +1215,23 @@ export class LunarLanderGame {
     this.planPath();
 
     console.log(`Obstacles regenerated (${this.obstaclesAmount} obstacles)`);
+  }
+
+  // Add method to update the weights
+  public setControllerWeights(weights: Partial<DDPWeights>): void {
+    this.controllerWeights = { ...this.controllerWeights, ...weights };
+    console.log("Updated controller weights:", this.controllerWeights);
+  }
+
+  // Add these methods at the end of the class
+  public getControllerWeight(name: keyof DDPWeights): number {
+    return (this.controllerWeights[name] as number) || 0;
+  }
+
+  public resetControllerWeights(): void {
+    this.controllerWeights = {
+      ...defaultDdpWeights,
+    };
+    console.log("Reset controller weights to defaults");
   }
 }

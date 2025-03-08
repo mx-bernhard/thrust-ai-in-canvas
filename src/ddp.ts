@@ -1,5 +1,33 @@
 import { GameState, ControlInput, Vector2D, Rectangle } from "./types";
 
+// Interface for configurable weights
+export interface DDPWeights {
+  velocityWeight?: number;
+  angularVelocityWeight?: number;
+  positionWeight?: number;
+  boundaryWeight?: number;
+  boundaryMargin?: number;
+  obstacleWeight?: number;
+  obstacleMargin?: number;
+  collisionCourseWeight?: number;
+  collisionTimeHorizon?: number;
+  shipRadius?: number;
+}
+
+// Default weights
+export const defaultDdpWeights: Required<DDPWeights> = {
+  velocityWeight: 1,
+  angularVelocityWeight: 0.1,
+  positionWeight: 15,
+  boundaryWeight: 9,
+  boundaryMargin: 50,
+  obstacleWeight: 0,
+  obstacleMargin: 0,
+  collisionCourseWeight: 25.0,
+  collisionTimeHorizon: 5.0,
+  shipRadius: 15,
+};
+
 export class DDPController {
   private readonly dt = 0.016; // 60fps
   private readonly horizon = 60; // 1 second prediction horizon
@@ -11,25 +39,50 @@ export class DDPController {
   private readonly obstacles: Rectangle[];
   private readonly canvasWidth: number;
   private readonly canvasHeight: number;
-  private readonly velocityWeight = 1;
-  private readonly angularVelocityWeight = 0.1;
-  private readonly boundaryMargin = 50; // Safety margin from boundaries
-  private readonly boundaryWeight = 9;
-  private readonly obstacleMargin = 0; // Safety margin around obstacles
-  private readonly obstacleWeight = 0; // Weight for obstacle avoidance
-  private readonly collisionCourseWeight = 25.0; // Weight for collision course avoidance
-  private readonly collisionTimeHorizon = 5.0; // Time horizon for collision prediction (seconds)
-  private readonly shipRadius = 15; // Ship radius for collision detection
-  private readonly positionWeight = 15; // Ship radius for collision detection
-  constructor(
-    gravity: number,
-    thrustMax: number,
-    torqueMax: number,
-    targetPosition: Vector2D,
-    obstacles: Rectangle[],
-    canvasWidth: number,
-    canvasHeight: number,
-  ) {
+
+  // Weights and configuration parameters
+  private readonly velocityWeight: number;
+  private readonly angularVelocityWeight: number;
+  private readonly boundaryMargin: number;
+  private readonly boundaryWeight: number;
+  private readonly obstacleMargin: number;
+  private readonly obstacleWeight: number;
+  private readonly collisionCourseWeight: number;
+  private readonly collisionTimeHorizon: number;
+  private readonly shipRadius: number;
+  private readonly positionWeight: number;
+
+  // For cost reporting
+  private lastCosts = {
+    position: 0,
+    velocity: 0,
+    angle: 0,
+    angularVelocity: 0,
+    obstacle: 0,
+    boundary: 0,
+    collisionCourse: 0,
+    total: 0,
+  };
+
+  constructor({
+    gravity,
+    thrustMax,
+    torqueMax,
+    targetPosition,
+    obstacles,
+    canvasWidth,
+    canvasHeight,
+    weights = {},
+  }: {
+    gravity: number;
+    thrustMax: number;
+    torqueMax: number;
+    targetPosition: Vector2D;
+    obstacles: Rectangle[];
+    canvasWidth: number;
+    canvasHeight: number;
+    weights?: DDPWeights;
+  }) {
     this.gravity = gravity;
     this.thrustMax = thrustMax;
     this.torqueMax = torqueMax;
@@ -37,6 +90,24 @@ export class DDPController {
     this.obstacles = obstacles;
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
+
+    // Apply weights with defaults
+    const mergedWeights = { ...defaultDdpWeights, ...weights };
+    this.velocityWeight = mergedWeights.velocityWeight;
+    this.angularVelocityWeight = mergedWeights.angularVelocityWeight;
+    this.positionWeight = mergedWeights.positionWeight;
+    this.boundaryWeight = mergedWeights.boundaryWeight;
+    this.boundaryMargin = mergedWeights.boundaryMargin;
+    this.obstacleWeight = mergedWeights.obstacleWeight;
+    this.obstacleMargin = mergedWeights.obstacleMargin;
+    this.collisionCourseWeight = mergedWeights.collisionCourseWeight;
+    this.collisionTimeHorizon = mergedWeights.collisionTimeHorizon;
+    this.shipRadius = mergedWeights.shipRadius;
+  }
+
+  // Return the last calculated costs for debugging
+  public getLastCosts() {
+    return this.lastCosts;
   }
 
   // Add a method to calculate collision course cost
@@ -270,32 +341,6 @@ export class DDPController {
     };
 
     return this.lastCosts.total;
-  }
-
-  // Update the lastCosts property to include the new cost
-  private lastCosts: {
-    position: number;
-    velocity: number;
-    angle: number;
-    angularVelocity: number;
-    obstacle: number;
-    boundary: number;
-    collisionCourse: number;
-    total: number;
-  } = {
-    position: 0,
-    velocity: 0,
-    angle: 0,
-    angularVelocity: 0,
-    obstacle: 0,
-    boundary: 0,
-    collisionCourse: 0,
-    total: 0,
-  };
-
-  // Add a getter to access the costs
-  public getLastCosts() {
-    return this.lastCosts;
   }
 
   public computeControl(currentState: GameState): ControlInput {
