@@ -44,6 +44,11 @@ describe("PathInterpolator", () => {
           currentPosition: { x: -1000, y: 0 },
           expectedResult: { x: -900, y: 0 },
         },
+        {
+          description: "at the last waypoint",
+          currentPosition: { x: 150, y: 0 },
+          expectedResult: { x: 150, y: 0 },
+        },
       ])("interpolates $description", ({ currentPosition, expectedResult }) => {
         const result = interpolator.getInterpolatedTarget(
           currentPosition,

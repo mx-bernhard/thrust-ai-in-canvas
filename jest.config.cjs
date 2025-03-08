@@ -1,3 +1,5 @@
+// @ts-check
+/* eslint-env node, commonjs */
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: "ts-jest",

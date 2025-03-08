@@ -1,18 +1,40 @@
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import prettierConfig from 'eslint-config-prettier';
+import js from "@eslint/js";
+import typescriptPlugin from "typescript-eslint";
+import prettierPlugin from "eslint-config-prettier";
 
-export default tseslint.config(
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
-  prettierConfig,
+export default [
+  js.configs.recommended,
+  ...typescriptPlugin.configs.recommended,
+  prettierPlugin,
   {
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '.yarn/**'],
+    ignores: ["node_modules/**", "dist/**", "coverage/**"],
   },
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    // Apply to all files
+    files: [
+      "**/*.js",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.mts",
+      "**/*.cts",
+      "**/*.cjs",
+    ],
     rules: {
-      // Add any custom rules here
+      // custom rules here
     },
-  }
-); 
+  },
+  {
+    // Special config for CJS files
+    files: ["**/*.cjs"],
+    languageOptions: {
+      globals: {
+        module: "readonly",
+        require: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        process: "readonly",
+      },
+      sourceType: "commonjs",
+    },
+  },
+];

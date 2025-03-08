@@ -2,6 +2,7 @@ import { GameState, GameConfig, Vector2D, Rectangle } from "./types";
 import { DDPController } from "./ddp";
 import { RRTPathPlanner } from "./rrt";
 import { PathInterpolator } from "./path-interpolation";
+import { distanceBetween } from "./distance-between.ts";
 
 export class LunarLanderGame {
   private canvas: HTMLCanvasElement;
@@ -13,7 +14,6 @@ export class LunarLanderGame {
   private pathInterpolator: PathInterpolator;
   private waypoints: Vector2D[] = [];
   private currentWaypointIndex: number = 0;
-  private waypointThreshold: number = 70;
   private config: GameConfig;
   private isPaused: boolean = false;
   private isStepMode: boolean = false;
@@ -23,14 +23,23 @@ export class LunarLanderGame {
   private showPath: boolean = true;
   private isColliding: boolean = false;
   private debugInfo: {
-    costs: any;
+    costs: {
+      position: number;
+      velocity: number;
+      angle: number;
+      angularVelocity: number;
+      obstacle: number;
+      boundary: number;
+      collisionCourse?: number;
+      total: number;
+    };
     position: Vector2D;
     velocity: Vector2D;
     speed: number;
     thrust: number;
     torque: number;
     angle: number;
-    waypoints: { current: number; total: number };
+    waypoints: { total: number };
     interpolatedTarget: { position: Vector2D; distance: number } | null;
     lastUpdateTime: number;
   };
@@ -41,7 +50,9 @@ export class LunarLanderGame {
   private obstaclesAmount = 10;
 
   // Constant for the lookahead distance
-  private readonly waypointLookaheadDistance: number = 50; // Distance to look ahead on the path
+  private readonly waypointLookaheadDistance: number = 75;
+  // Max distance towards path before replanning
+  private readonly maxDistanceToPath: number = 300;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -52,6 +63,7 @@ export class LunarLanderGame {
     // Initialize the path interpolator
     this.pathInterpolator = new PathInterpolator(
       this.waypointLookaheadDistance,
+      this.maxDistanceToPath,
     );
 
     // Initialize debug info
@@ -71,7 +83,7 @@ export class LunarLanderGame {
       thrust: 0,
       torque: 0,
       angle: 0,
-      waypoints: { current: 0, total: 0 },
+      waypoints: { total: 0 },
       interpolatedTarget: null,
       lastUpdateTime: 0,
     };
@@ -509,7 +521,7 @@ export class LunarLanderGame {
 
       // Get the interpolated target for debug info
       const interpolatedTarget = this.getCurrentWaypoint();
-      const distanceToTarget = this.pathInterpolator.distanceBetween(
+      const distanceToTarget = distanceBetween(
         this.state.position,
         interpolatedTarget,
       );
@@ -523,7 +535,6 @@ export class LunarLanderGame {
         torque: this.state.angularVelocity,
         angle: this.state.angle,
         waypoints: {
-          current: this.currentWaypointIndex,
           total: this.waypoints.length,
         },
         interpolatedTarget: {
@@ -694,7 +705,7 @@ export class LunarLanderGame {
     // Add path planning info
     if (this.waypoints.length > 0) {
       this.ctx.fillText(
-        `Waypoint: ${this.debugInfo.waypoints.current}/${this.debugInfo.waypoints.total}`,
+        `Waypoints: ${this.debugInfo.waypoints.total}`,
         150,
         190,
       );
@@ -976,29 +987,9 @@ export class LunarLanderGame {
   private updateWaypoints(): void {
     if (this.waypoints.length === 0) return;
 
-    // Update the waypoint index
-    const newIndex = this.pathInterpolator.updateWaypointIndex(
-      this.state.position,
-      this.waypoints,
-      this.currentWaypointIndex,
-      this.waypointThreshold,
-    );
-
-    // If the index changed, log it
-    if (newIndex > this.currentWaypointIndex) {
-      console.log(
-        `Reached waypoint ${this.currentWaypointIndex}, moving to next`,
-      );
-      this.currentWaypointIndex = newIndex;
-    }
-
     // Check if we need to replan the path
-    const interpolatedTarget = this.getCurrentWaypoint();
     if (
-      this.pathInterpolator.needsReplanning(
-        this.state.position,
-        interpolatedTarget,
-      )
+      this.pathInterpolator.needsReplanning(this.state.position, this.waypoints)
     ) {
       console.log("Deviation from path detected, replanning...");
       this.planPath();

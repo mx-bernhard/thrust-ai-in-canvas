@@ -10,19 +10,19 @@ export function getShortestLineToPath(
   let nextSegment = null;
 
   for (let i = 0; i < path.length - 1; i++) {
-    let { x: x1, y: y1 } = path[i];
-    let { x: x2, y: y2 } = path[i + 1];
+    const { x: x1, y: y1 } = path[i];
+    const { x: x2, y: y2 } = path[i + 1];
 
     // Direction vector of the segment
-    let vx = x2 - x1;
-    let vy = y2 - y1;
+    const vx = x2 - x1;
+    const vy = y2 - y1;
 
     // Vector from point P to start point A
-    let wx = px - x1;
-    let wy = py - y1;
+    const wx = px - x1;
+    const wy = py - y1;
 
     // Scalar product and projection
-    let t = (wx * vx + wy * vy) / (vx * vx + vy * vy);
+    const t = (wx * vx + wy * vy) / (vx * vx + vy * vy);
 
     let x_s, y_s;
     if (t < 0) {
@@ -40,7 +40,7 @@ export function getShortestLineToPath(
     }
 
     // Calculate distance to point P
-    let dist = math.sqrt((x_s - px) ** 2 + (y_s - py) ** 2);
+    const dist = math.sqrt((x_s - px) ** 2 + (y_s - py) ** 2);
     if (typeof dist !== "number") {
       throw new Error("Distance is not a number");
     }

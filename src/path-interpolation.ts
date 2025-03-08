@@ -31,21 +31,27 @@ export class PathInterpolator {
   public getInterpolatedTarget(
     currentPosition: Vector2D,
     waypoints: Vector2D[],
-
     finalTarget: Vector2D,
   ): Vector2D {
     // If no waypoints, return the final target
     if (waypoints.length === 0) {
       return finalTarget;
     }
-
+    const distanceToLastWaypoint =
+      waypoints.length > 0
+        ? distanceBetween(currentPosition, waypoints.at(-1)!)
+        : Infinity;
+    const coercedLookaheadDistance = Math.min(
+      this.lookaheadDistance,
+      distanceToLastWaypoint,
+    );
     const {
       shortestDistance: shortestDistanceToPath,
       crossSectionPoint: closestPointOnPath,
       segment,
     } = getShortestLineToPath(waypoints, currentPosition);
 
-    let perpendicularDistanceCandidate: number = shortestDistanceToPath;
+    const perpendicularDistanceCandidate: number = shortestDistanceToPath;
     let waypointIndexCandidate: number = waypoints.findIndex(
       ({ x, y }) => x === segment?.start.x && y === segment?.start.y,
     );
@@ -59,9 +65,9 @@ export class PathInterpolator {
         closestPointOnPath,
         waypoints[waypointIndexCandidate + 1],
       );
-      if (perpendicularDistanceCandidate < this.lookaheadDistance) {
+      if (perpendicularDistanceCandidate < coercedLookaheadDistance) {
         let remainingDistance =
-          this.lookaheadDistance - perpendicularDistanceCandidate;
+          coercedLookaheadDistance - perpendicularDistanceCandidate;
         let currentPoint = closestPointOnPath;
         while (
           remainingDistance > 0 &&
@@ -78,14 +84,20 @@ export class PathInterpolator {
           } else {
             // Interpolate between the current waypoint and the next waypoint for the remaining distance
             return getVectorBetweenPoints(
-              waypoints[waypointIndexCandidate + 1],
               currentPoint,
+              waypoints[waypointIndexCandidate + 1],
               currentPoint,
               remainingDistance,
             );
           }
         }
       } else {
+        return getVectorBetweenPoints(
+          currentPosition,
+          closestPointOnPath,
+          currentPosition,
+          coercedLookaheadDistance,
+        );
       }
     }
     // If we've reached the final waypoint, return the final target
@@ -119,18 +131,21 @@ export class PathInterpolator {
 }
 export function getVectorBetweenPoints(
   point1: Vector2D,
-  point2: { x: number; y: number },
-  currentPoint: { x: number; y: number },
+  point2: Vector2D,
+  currentPoint: Vector2D,
   length: number,
 ) {
   const directionVector = {
-    x: point1.x - point2.x,
-    y: point1.y - point2.y,
+    x: point2.x - point1.x,
+    y: point2.y - point1.y,
   };
   const directionVectorLength = distanceBetween(
     { x: 0, y: 0 },
     directionVector,
   );
+  if (directionVectorLength === 0) {
+    return currentPoint;
+  }
   const result = {
     x: currentPoint.x + (directionVector.x * length) / directionVectorLength,
     y: currentPoint.y + (directionVector.y * length) / directionVectorLength,
