@@ -1,4 +1,4 @@
-import { PathInterpolator } from "./pathInterpolation";
+import { PathInterpolator } from "./path-interpolation";
 import { Vector2D } from "./types";
 
 /**

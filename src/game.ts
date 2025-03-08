@@ -1,7 +1,7 @@
 import { GameState, GameConfig, Vector2D, Rectangle } from "./types";
 import { DDPController } from "./ddp";
 import { RRTPathPlanner } from "./rrt";
-import { PathInterpolator } from "./pathInterpolation";
+import { PathInterpolator } from "./path-interpolation";
 
 export class LunarLanderGame {
   private canvas: HTMLCanvasElement;
