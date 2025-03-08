@@ -1234,4 +1234,37 @@ export class LunarLanderGame {
     };
     console.log("Reset controller weights to defaults");
   }
+
+  // Add these methods to update physics parameters
+  public setThrustMax(value: number): void {
+    this.config.thrustMax = value;
+    this.updateController();
+    console.log("Updated thrustMax:", value);
+  }
+
+  public setTorqueMax(value: number): void {
+    this.config.torqueMax = value;
+    this.updateController();
+    console.log("Updated torqueMax:", value);
+  }
+
+  public setGravity(x: number, y: number): void {
+    this.config.gravity = { x, y };
+    this.updateController();
+    console.log("Updated gravity:", this.config.gravity);
+  }
+
+  // Helper method to recreate the controller with updated parameters
+  private updateController(): void {
+    this.controller = new DDPController({
+      gravity: this.config.gravity.y,
+      thrustMax: this.config.thrustMax,
+      torqueMax: this.config.torqueMax,
+      targetPosition: this.getCurrentWaypoint(),
+      obstacles: this.obstacles,
+      canvasWidth: this.canvas.width / this.scale,
+      canvasHeight: this.canvas.height / this.scale,
+      weights: this.controllerWeights,
+    });
+  }
 }

@@ -296,8 +296,135 @@ function createWeightsControls() {
   return controlsContainer;
 }
 
-// Add weights controls to the UI
-appContainer.appendChild(createWeightsControls());
+// Add a new function to create physics controls
+function createPhysicsControls() {
+  const controlsContainer = document.createElement("div");
+  controlsContainer.className = "physics-controls";
+  controlsContainer.style.margin = "20px 0";
+  controlsContainer.style.display = "flex";
+  controlsContainer.style.flexWrap = "wrap";
+  controlsContainer.style.gap = "10px";
+
+  // Create a header
+  const header = document.createElement("h3");
+  header.textContent = "Physics Controls";
+  header.style.width = "100%";
+  header.style.margin = "5px 0";
+  controlsContainer.appendChild(header);
+
+  // Physics parameters with their min/max values
+  const physicsControls = [
+    {
+      name: "thrustMax",
+      label: "Max Thrust",
+      min: 5,
+      max: 50,
+      step: 1,
+      initial: gameConfig.thrustMax,
+      setter: (val: number) => game.setThrustMax(val),
+    },
+    {
+      name: "torqueMax",
+      label: "Max Torque",
+      min: 1,
+      max: 20,
+      step: 0.5,
+      initial: gameConfig.torqueMax,
+      setter: (val: number) => game.setTorqueMax(val),
+    },
+    {
+      name: "gravityY",
+      label: "Gravity Y",
+      min: 0,
+      max: 0.5,
+      step: 0.01,
+      initial: gameConfig.gravity.y,
+      setter: (val: number) => game.setGravity(gameConfig.gravity.x, val),
+    },
+    {
+      name: "gravityX",
+      label: "Gravity X",
+      min: -0.2,
+      max: 0.2,
+      step: 0.01,
+      initial: gameConfig.gravity.x,
+      setter: (val: number) => game.setGravity(val, gameConfig.gravity.y),
+    },
+  ];
+
+  physicsControls.forEach((control) => {
+    const controlDiv = document.createElement("div");
+    controlDiv.style.display = "flex";
+    controlDiv.style.flexDirection = "column";
+    controlDiv.style.width = "150px";
+
+    const label = document.createElement("label");
+    label.textContent = control.label;
+    label.style.marginBottom = "5px";
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = control.min.toString();
+    slider.max = control.max.toString();
+    slider.step = control.step.toString();
+    slider.value = control.initial.toString();
+
+    const valueDisplay = document.createElement("span");
+    valueDisplay.textContent = slider.value;
+    valueDisplay.style.fontSize = "12px";
+    valueDisplay.style.marginTop = "2px";
+
+    slider.addEventListener("input", () => {
+      const value = parseFloat(slider.value);
+      valueDisplay.textContent = value.toString();
+      control.setter(value);
+    });
+
+    controlDiv.appendChild(label);
+    controlDiv.appendChild(slider);
+    controlDiv.appendChild(valueDisplay);
+    controlsContainer.appendChild(controlDiv);
+  });
+
+  const resetButton = document.createElement("button");
+  resetButton.textContent = "Reset Physics";
+  resetButton.addEventListener("click", () => {
+    game.setThrustMax(gameConfig.thrustMax);
+    game.setTorqueMax(gameConfig.torqueMax);
+    game.setGravity(gameConfig.gravity.x, gameConfig.gravity.y);
+
+    // Update all sliders
+    document
+      .querySelectorAll(".physics-controls input")
+      .forEach((slider, index) => {
+        const input = slider as HTMLInputElement;
+        const control = physicsControls[index];
+        input.value = control.initial.toString();
+        const valueDisplay = slider.nextElementSibling as HTMLSpanElement;
+        valueDisplay.textContent = input.value;
+      });
+  });
+
+  controlsContainer.appendChild(resetButton);
+  return controlsContainer;
+}
+
+// Add both control panels to the UI
+const controlsSection = document.createElement("div");
+controlsSection.style.display = "flex";
+controlsSection.style.flexDirection = "column";
+controlsSection.style.gap = "20px";
+
+// Create a header for weights
+const weightsHeader = document.createElement("h3");
+weightsHeader.textContent = "Controller Weights";
+weightsHeader.style.margin = "5px 0";
+
+// Append the controls
+controlsSection.appendChild(createPhysicsControls());
+controlsSection.appendChild(weightsHeader);
+controlsSection.appendChild(createWeightsControls());
+appContainer.appendChild(controlsSection);
 
 // Start the game
 game.start();
