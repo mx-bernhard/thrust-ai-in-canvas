@@ -968,7 +968,6 @@ export class LunarLanderGame {
     return this.pathInterpolator.getInterpolatedTarget(
       this.state.position,
       this.waypoints,
-      this.currentWaypointIndex,
       this.targetPosition,
     );
   }
