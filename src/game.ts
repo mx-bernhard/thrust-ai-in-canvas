@@ -49,8 +49,6 @@ export class LunarLanderGame {
 
   private obstaclesAmount = 10;
 
-  // Constant for the lookahead distance
-  private readonly waypointLookaheadDistance: number = 75;
   // Max distance towards path before replanning
   private readonly maxDistanceToPath: number = 300;
 
@@ -66,6 +64,10 @@ export class LunarLanderGame {
     collisionTimeHorizon: 5.0,
     shipRadius: 15,
   };
+
+  // Change from readonly to regular property
+  // private readonly waypointLookaheadDistance: number = 75;
+  private waypointLookaheadDistance: number = 75;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -1266,5 +1268,19 @@ export class LunarLanderGame {
       canvasHeight: this.canvas.height / this.scale,
       weights: this.controllerWeights,
     });
+  }
+
+  // Update the setter method to use proper typing
+  public setWaypointLookaheadDistance(value: number): void {
+    // Update the value directly
+    this.waypointLookaheadDistance = value;
+
+    // Reinitialize the path interpolator with the new value
+    this.pathInterpolator = new PathInterpolator(
+      this.waypointLookaheadDistance,
+      this.maxDistanceToPath,
+    );
+
+    console.log("Updated waypoint lookahead distance:", value);
   }
 }

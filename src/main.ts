@@ -305,13 +305,6 @@ function createPhysicsControls() {
   controlsContainer.style.flexWrap = "wrap";
   controlsContainer.style.gap = "10px";
 
-  // Create a header
-  const header = document.createElement("h3");
-  header.textContent = "Physics Controls";
-  header.style.width = "100%";
-  header.style.margin = "5px 0";
-  controlsContainer.appendChild(header);
-
   // Physics parameters with their min/max values
   const physicsControls = [
     {
@@ -409,19 +402,101 @@ function createPhysicsControls() {
   return controlsContainer;
 }
 
-// Add both control panels to the UI
+// Create a function for path planning controls
+function createPathPlanningControls() {
+  const controlsContainer = document.createElement("div");
+  controlsContainer.className = "path-planning-controls";
+  controlsContainer.style.margin = "20px 0";
+  controlsContainer.style.display = "flex";
+  controlsContainer.style.flexWrap = "wrap";
+  controlsContainer.style.gap = "10px";
+
+  // Create a header
+  const header = document.createElement("h3");
+  header.textContent = "Path Planning Controls";
+  header.style.width = "100%";
+  header.style.margin = "5px 0";
+  controlsContainer.appendChild(header);
+
+  // Path planning parameters
+  const pathControls = [
+    {
+      name: "lookaheadDistance",
+      label: "Waypoint Lookahead",
+      min: 25,
+      max: 200,
+      step: 5,
+      initial: 75, // Default value from game.ts
+      setter: (val: number) => game.setWaypointLookaheadDistance(val),
+    },
+  ];
+
+  pathControls.forEach((control) => {
+    const controlDiv = document.createElement("div");
+    controlDiv.style.display = "flex";
+    controlDiv.style.flexDirection = "column";
+    controlDiv.style.width = "200px";
+
+    const label = document.createElement("label");
+    label.textContent = control.label;
+    label.style.marginBottom = "5px";
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = control.min.toString();
+    slider.max = control.max.toString();
+    slider.step = control.step.toString();
+    slider.value = control.initial.toString();
+
+    const valueDisplay = document.createElement("span");
+    valueDisplay.textContent = slider.value;
+    valueDisplay.style.fontSize = "12px";
+    valueDisplay.style.marginTop = "2px";
+
+    slider.addEventListener("input", () => {
+      const value = parseFloat(slider.value);
+      valueDisplay.textContent = value.toString();
+      control.setter(value);
+    });
+
+    controlDiv.appendChild(label);
+    controlDiv.appendChild(slider);
+    controlDiv.appendChild(valueDisplay);
+    controlsContainer.appendChild(controlDiv);
+  });
+
+  // Add a tooltip to explain the purpose
+  const tooltip = document.createElement("div");
+  tooltip.style.fontSize = "12px";
+  tooltip.style.color = "#666";
+  tooltip.style.marginTop = "5px";
+  tooltip.style.width = "100%";
+  tooltip.textContent =
+    "Lookahead Distance controls how far ahead the ship aims along the path.";
+  controlsContainer.appendChild(tooltip);
+
+  return controlsContainer;
+}
+
+// Modify the existing code where you're adding the control panels
 const controlsSection = document.createElement("div");
 controlsSection.style.display = "flex";
 controlsSection.style.flexDirection = "column";
 controlsSection.style.gap = "20px";
 
-// Create a header for weights
+// Create headers for each section
+const physicsHeader = document.createElement("h3");
+physicsHeader.textContent = "Physics Controls";
+physicsHeader.style.margin = "5px 0";
+
 const weightsHeader = document.createElement("h3");
 weightsHeader.textContent = "Controller Weights";
 weightsHeader.style.margin = "5px 0";
 
 // Append the controls
+controlsSection.appendChild(physicsHeader);
 controlsSection.appendChild(createPhysicsControls());
+controlsSection.appendChild(createPathPlanningControls());
 controlsSection.appendChild(weightsHeader);
 controlsSection.appendChild(createWeightsControls());
 appContainer.appendChild(controlsSection);
