@@ -1,5 +1,6 @@
 import { GameState, ControlInput, Vector2D, Rectangle } from "./types";
 import { getWaypointsFollowingCost } from "./get-waypoints-cost.ts";
+import { normalizeAngle } from "./util.ts";
 // Interface for configurable weights
 export interface DDPWeights {
   velocityWeight?: number;
@@ -377,9 +378,9 @@ export class DDPController {
     const sinAngle = Math.sin(state.angle);
 
     // Calculate the new angle and normalize it
-    const newAngle = state.angle + state.angularVelocity * this.dt;
-    // Normalize to keep angle between -Math.PI and Math.PI
-    const normalizedAngle = ((newAngle + Math.PI) % (2 * Math.PI)) - Math.PI;
+    const newAngle = normalizeAngle(
+      state.angle + state.angularVelocity * this.dt,
+    );
 
     return {
       position: {
@@ -392,7 +393,7 @@ export class DDPController {
           state.velocity.y +
           (-control.thrust * cosAngle + this.gravity) * this.dt,
       },
-      angle: state.angle + state.angularVelocity * this.dt,
+      angle: newAngle,
       angularVelocity: state.angularVelocity + control.torque * this.dt,
       thrust: control.thrust,
       fuel:

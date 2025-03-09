@@ -3,6 +3,7 @@ import { DDPController, DDPWeights, defaultDdpWeights } from "./ddp";
 import { RRTPathPlanner } from "./rrt";
 import { PathInterpolator } from "./path-interpolation";
 import { distanceBetween } from "./distance-between.ts";
+import { normalizeAngle } from "./util.ts";
 
 export class LunarLanderGame {
   private canvas: HTMLCanvasElement;
@@ -795,6 +796,7 @@ export class LunarLanderGame {
     this.state.velocity.y +=
       (-control.thrust * cosAngle + this.config.gravity.y) * dt;
     this.state.angle += this.state.angularVelocity * dt;
+    this.state.angle = normalizeAngle(this.state.angle);
     this.state.angularVelocity += control.torque * dt;
     this.state.thrust = control.thrust;
 
