@@ -13,6 +13,8 @@ export interface DDPWeights {
   collisionCourseWeight?: number;
   collisionTimeHorizon?: number;
   shipRadius?: number;
+  waypointsVelocityWeight?: number;
+  waypointsDistanceWeight?: number;
 }
 
 // Default weights
@@ -27,11 +29,13 @@ export const defaultDdpWeights: Required<DDPWeights> = {
   collisionCourseWeight: 25.0,
   collisionTimeHorizon: 5.0,
   shipRadius: 15,
+  waypointsVelocityWeight: 1,
+  waypointsDistanceWeight: 1,
 };
 
 export class DDPController {
   private readonly dt = 0.016; // 60fps
-  private readonly horizon = 60; // 1 second prediction horizon
+  private readonly horizon = 60 * 5; // 1 second prediction horizon
   private readonly iterations = 30;
   private readonly gravity: number;
   private readonly thrustMax: number;
@@ -52,6 +56,9 @@ export class DDPController {
   private readonly collisionTimeHorizon: number;
   private readonly shipRadius: number;
   private readonly positionWeight: number;
+  private readonly waypoints: Vector2D[];
+  private readonly waypointsVelocityWeight: number;
+  private readonly waypointsDistanceWeight: number;
 
   // For cost reporting
   private lastCosts = {
@@ -62,6 +69,7 @@ export class DDPController {
     obstacle: 0,
     boundary: 0,
     collisionCourse: 0,
+    waypoints: 0,
     total: 0,
   };
 
@@ -74,6 +82,7 @@ export class DDPController {
     canvasWidth,
     canvasHeight,
     weights = {},
+    waypoints = [],
   }: {
     gravity: number;
     thrustMax: number;
@@ -83,6 +92,7 @@ export class DDPController {
     canvasWidth: number;
     canvasHeight: number;
     weights?: DDPWeights;
+    waypoints: Vector2D[];
   }) {
     this.gravity = gravity;
     this.thrustMax = thrustMax;
@@ -104,6 +114,9 @@ export class DDPController {
     this.collisionCourseWeight = mergedWeights.collisionCourseWeight;
     this.collisionTimeHorizon = mergedWeights.collisionTimeHorizon;
     this.shipRadius = mergedWeights.shipRadius;
+    this.waypointsVelocityWeight = mergedWeights.waypointsVelocityWeight;
+    this.waypointsDistanceWeight = mergedWeights.waypointsDistanceWeight;
+    this.waypoints = waypoints;
   }
 
   // Return the last calculated costs for debugging
@@ -111,7 +124,7 @@ export class DDPController {
     return this.lastCosts;
   }
 
-  // Add a method to calculate collision course cost
+  // calculate collision course cost
   private collisionCourseCost(state: GameState): number {
     if (this.obstacles.length === 0) return 0;
 
@@ -299,6 +312,16 @@ export class DDPController {
     return totalCost;
   }
 
+  private waypointsCost(position: Vector2D, velocity: Vector2D): number {
+    return getWaypointsFollowingCost(
+      this.waypoints,
+      position,
+      velocity,
+      this.waypointsDistanceWeight,
+      this.waypointsVelocityWeight,
+    );
+  }
+
   private cost(state: GameState): number {
     // Target reaching cost
     const positionCost =
@@ -318,10 +341,8 @@ export class DDPController {
     // Obstacle and boundary avoidance costs
     const obstacleCost = this.obstacleAvoidanceCost(state.position);
     const boundaryCost = this.boundaryAvoidanceCost(state.position);
-
-    // New collision course cost
     const collisionCourseCost = this.collisionCourseCost(state);
-
+    const waypointsCost = this.waypointsCost(state.position, state.velocity);
     // Store costs for debugging
     this.lastCosts = {
       position: positionCost,
@@ -331,6 +352,7 @@ export class DDPController {
       obstacle: obstacleCost,
       boundary: boundaryCost,
       collisionCourse: collisionCourseCost,
+      waypoints: waypointsCost,
       total:
         positionCost +
         velocityCost +
@@ -338,7 +360,8 @@ export class DDPController {
         angularVelocityCost +
         obstacleCost +
         boundaryCost +
-        collisionCourseCost,
+        collisionCourseCost +
+        waypointsCost,
     };
 
     return this.lastCosts.total;

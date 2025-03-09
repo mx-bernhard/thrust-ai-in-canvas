@@ -33,6 +33,7 @@ export class LunarLanderGame {
       boundary: number;
       collisionCourse?: number;
       total: number;
+      waypoints?: number;
     };
     position: Vector2D;
     velocity: Vector2D;
@@ -131,6 +132,7 @@ export class LunarLanderGame {
       canvasWidth: this.canvas.width / this.scale,
       canvasHeight: this.canvas.height / this.scale,
       weights: this.controllerWeights,
+      waypoints: this.waypoints,
     });
 
     // Initialize RRT path planner
@@ -644,6 +646,16 @@ export class LunarLanderGame {
     );
     debugY += lineHeight;
 
+    // Add waypoints following cost
+    if (this.debugInfo.costs.waypoints !== undefined) {
+      this.ctx.fillText(
+        `Waypoints Cost: ${formatCost(this.debugInfo.costs.waypoints)}`,
+        20,
+        debugY,
+      );
+      debugY += lineHeight;
+    }
+
     // Add collision course cost
     if (this.debugInfo.costs.collisionCourse !== undefined) {
       this.ctx.fillText(
@@ -763,6 +775,7 @@ export class LunarLanderGame {
       canvasWidth: this.canvas.width / this.scale,
       canvasHeight: this.canvas.height / this.scale,
       weights: this.controllerWeights,
+      waypoints: this.waypoints,
     });
 
     const control = this.controller.computeControl(this.state);
@@ -1206,6 +1219,7 @@ export class LunarLanderGame {
       canvasWidth: this.canvas.width / this.scale,
       canvasHeight: this.canvas.height / this.scale,
       weights: this.controllerWeights,
+      waypoints: this.waypoints,
     });
 
     // Update the path planner with new obstacles
@@ -1269,6 +1283,7 @@ export class LunarLanderGame {
       canvasWidth: this.canvas.width / this.scale,
       canvasHeight: this.canvas.height / this.scale,
       weights: this.controllerWeights,
+      waypoints: this.waypoints,
     });
   }
 

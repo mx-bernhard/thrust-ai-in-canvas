@@ -238,6 +238,20 @@ function createWeightsControls() {
       max: 100,
       step: 1,
     },
+    {
+      name: "waypointsDistanceWeight",
+      label: "Waypoints Distance",
+      min: 0,
+      max: 10000,
+      step: 0.1,
+    },
+    {
+      name: "waypointsVelocityWeight",
+      label: "Waypoints Velocity",
+      min: 0,
+      max: 10000,
+      step: 0.1,
+    },
   ];
 
   weightControls.forEach((control) => {
