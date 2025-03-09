@@ -376,6 +376,11 @@ export class DDPController {
     const cosAngle = Math.cos(state.angle);
     const sinAngle = Math.sin(state.angle);
 
+    // Calculate the new angle and normalize it
+    const newAngle = state.angle + state.angularVelocity * this.dt;
+    // Normalize to keep angle between -Math.PI and Math.PI
+    const normalizedAngle = ((newAngle + Math.PI) % (2 * Math.PI)) - Math.PI;
+
     return {
       position: {
         x: state.position.x + state.velocity.x * this.dt,
