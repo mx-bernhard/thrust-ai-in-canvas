@@ -1,5 +1,5 @@
 import { GameState, ControlInput, Vector2D, Rectangle } from "./types";
-
+import { getWaypointsFollowingCost } from "./get-waypoints-cost.ts";
 // Interface for configurable weights
 export interface DDPWeights {
   velocityWeight?: number;

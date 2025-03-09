@@ -185,35 +185,35 @@ function createWeightsControls() {
     {
       name: "positionWeight",
       label: "Position Weight",
-      min: 1,
+      min: 0,
       max: 50,
       step: 1,
     },
     {
       name: "velocityWeight",
       label: "Velocity Weight",
-      min: 0.1,
+      min: 0,
       max: 10,
       step: 0.1,
     },
     {
       name: "angularVelocityWeight",
       label: "Angular Vel Weight",
-      min: 0.01,
+      min: 0,
       max: 1,
       step: 0.01,
     },
     {
       name: "boundaryWeight",
       label: "Boundary Weight",
-      min: 1,
+      min: 0,
       max: 50,
       step: 1,
     },
     {
       name: "boundaryMargin",
       label: "Boundary Margin",
-      min: 10,
+      min: 0,
       max: 150,
       step: 5,
     },
@@ -234,7 +234,7 @@ function createWeightsControls() {
     {
       name: "collisionCourseWeight",
       label: "Collision Course",
-      min: 1,
+      min: 0,
       max: 100,
       step: 1,
     },
@@ -423,10 +423,10 @@ function createPathPlanningControls() {
     {
       name: "lookaheadDistance",
       label: "Waypoint Lookahead",
-      min: 25,
+      min: 0,
       max: 200,
       step: 5,
-      initial: 75, // Default value from game.ts
+      initial: 75,
       setter: (val: number) => game.setWaypointLookaheadDistance(val),
     },
   ];
