@@ -27,7 +27,7 @@ export const defaultDdpWeights: Required<DDPWeights> = {
   obstacleWeight: 0,
   obstacleMargin: 0,
   collisionCourseWeight: 25.0,
-  collisionTimeHorizon: 5.0,
+  collisionTimeHorizon: 15.0,
   shipRadius: 15,
   waypointsVelocityWeight: 1,
   waypointsDistanceWeight: 1,
@@ -35,8 +35,8 @@ export const defaultDdpWeights: Required<DDPWeights> = {
 
 export class DDPController {
   private readonly dt = 0.016; // 60fps
-  private readonly horizon = 60 * 5; // 1 second prediction horizon
-  private readonly iterations = 30;
+  private readonly horizon = 60 * 1; // 1 second prediction horizon
+  private readonly iterations = 30 * 1;
   private readonly gravity: number;
   private readonly thrustMax: number;
   private readonly torqueMax: number;
