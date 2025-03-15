@@ -121,10 +121,10 @@ const togglePathButton = document.createElement("button");
 togglePathButton.textContent = "Hide Path";
 togglePathButton.addEventListener("click", () => {
   if (togglePathButton.textContent === "Hide Path") {
-    game.togglePath(false);
+    game.togglePathVisibility(false);
     togglePathButton.textContent = "Show Path";
   } else {
-    game.togglePath(true);
+    game.togglePathVisibility(true);
     togglePathButton.textContent = "Hide Path";
   }
 });

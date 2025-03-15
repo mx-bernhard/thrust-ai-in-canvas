@@ -128,6 +128,10 @@ export class PathInterpolator {
   public getLookaheadDistance(): number {
     return this.lookaheadDistance;
   }
+
+  public getMaxDistanceToPath(): number {
+    return this.maxDistanceToPath;
+  }
 }
 export function getVectorBetweenPoints(
   point1: Vector2D,

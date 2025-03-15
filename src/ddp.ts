@@ -41,7 +41,7 @@ export class DDPController {
   private readonly gravity: number;
   private readonly thrustMax: number;
   private readonly torqueMax: number;
-  private readonly targetPosition: Vector2D;
+  private readonly getTargetPosition: () => Vector2D;
   private readonly obstacles: Rectangle[];
   private readonly canvasWidth: number;
   private readonly canvasHeight: number;
@@ -57,7 +57,7 @@ export class DDPController {
   private readonly collisionTimeHorizon: number;
   private readonly shipRadius: number;
   private readonly positionWeight: number;
-  private readonly waypoints: Vector2D[];
+  private readonly getWaypoints: () => Vector2D[];
   private readonly waypointsVelocityWeight: number;
   private readonly waypointsDistanceWeight: number;
 
@@ -77,27 +77,27 @@ export class DDPController {
     gravity,
     thrustMax,
     torqueMax,
-    targetPosition,
+    getTargetPosition,
     obstacles,
     canvasWidth,
     canvasHeight,
     weights = {},
-    waypoints = [],
+    getWaypoints = () => [],
   }: {
     gravity: number;
     thrustMax: number;
     torqueMax: number;
-    targetPosition: Vector2D;
+    getTargetPosition: () => Vector2D;
     obstacles: Rectangle[];
     canvasWidth: number;
     canvasHeight: number;
     weights?: DDPWeights;
-    waypoints: Vector2D[];
+    getWaypoints: () => Vector2D[];
   }) {
     this.gravity = gravity;
     this.thrustMax = thrustMax;
     this.torqueMax = torqueMax;
-    this.targetPosition = targetPosition;
+    this.getTargetPosition = getTargetPosition;
     this.obstacles = obstacles;
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
@@ -116,7 +116,7 @@ export class DDPController {
     this.shipRadius = mergedWeights.shipRadius;
     this.waypointsVelocityWeight = mergedWeights.waypointsVelocityWeight;
     this.waypointsDistanceWeight = mergedWeights.waypointsDistanceWeight;
-    this.waypoints = waypoints;
+    this.getWaypoints = getWaypoints;
   }
 
   // Return the last calculated costs for debugging
@@ -128,11 +128,11 @@ export class DDPController {
     // Use the extracted cost calculation function
     const costComponents = calculateTotalCost(
       state,
-      this.targetPosition,
+      this.getTargetPosition(),
       this.obstacles,
       this.canvasWidth,
       this.canvasHeight,
-      this.waypoints,
+      this.getWaypoints(),
       {
         positionWeight: this.positionWeight,
         velocityWeight: this.velocityWeight,
