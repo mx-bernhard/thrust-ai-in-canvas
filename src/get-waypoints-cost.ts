@@ -29,12 +29,16 @@ export const getWaypointsFollowingCost = (
 
     // Safety check - if any key data is missing, just return distance-based cost
     if (!crossSectionPoint || !segment) {
-      return waypointsDistanceWeight * Math.sqrt(shortestDistance);
+      // Use quadratic scaling for consistency with other cost functions
+      return waypointsDistanceWeight * shortestDistance;
     }
 
-    // Calculate the basic distance cost using square root for better scaling
-    // This is the primary component for off-path positions
-    const distanceCost = waypointsDistanceWeight * Math.sqrt(shortestDistance);
+    // Calculate distance cost with quadratic scaling
+    // This creates a bowl-shaped cost function that:
+    // 1. Increases with the square of distance from the path
+    // 2. Provides a smooth gradient toward the path
+    // 3. Is consistent with other quadratic costs in the system
+    const distanceCost = waypointsDistanceWeight * shortestDistance;
 
     // Handle velocity-based cost components
     let velocityCost = 0;
@@ -43,7 +47,7 @@ export const getWaypointsFollowingCost = (
     );
 
     if (velocityMagnitude > 0.001) {
-      // Get normalized velocity vector
+      // Normalize velocity for direction calculations
       const velocityNorm = {
         x: velocity.x / velocityMagnitude,
         y: velocity.y / velocityMagnitude,
@@ -71,29 +75,47 @@ export const getWaypointsFollowingCost = (
         y: segmentVector.y / segmentLength,
       };
 
-      // Calculate alignment between velocity and segment direction
-      // 1 = perfect alignment, 0 = perpendicular, -1 = opposite
+      // Calculate dot product for alignment with segment
       const alignmentDot =
         velocityNorm.x * segmentNorm.x + velocityNorm.y * segmentNorm.y;
 
       // Create adaptive velocity expectations based on segment length
-      // Longer segments expect higher velocities
-      const expectedVelocity = Math.min(15, segmentLength / 10);
+      const expectedVelocity = segmentLength;
 
-      // Calculate velocity cost based on alignment and magnitude
-      if (alignmentDot > 0) {
-        // Reward velocity in the right direction, using segment length as scale
-        // More velocity in the right direction = lower cost
-        velocityCost =
-          waypointsVelocityWeight *
-          (1 - Math.min(1, velocityMagnitude / expectedVelocity));
-      } else {
-        // Penalize velocity in the wrong direction
-        // More velocity in the wrong direction = higher cost
-        velocityCost =
-          waypointsVelocityWeight *
-          (1 + (Math.abs(alignmentDot) * velocityMagnitude) / 5);
-      }
+      // Create the expected velocity vector in the direction of the segment
+      const expectedVelocityVector = {
+        x: segmentNorm.x * expectedVelocity,
+        y: segmentNorm.y * expectedVelocity,
+      };
+
+      // Calculate velocity difference vector
+      const velocityDiff = {
+        x: velocity.x - expectedVelocityVector.x,
+        y: velocity.y - expectedVelocityVector.y,
+      };
+
+      // Calculate the squared magnitude of the difference vector
+      const velocityDeviation =
+        velocityDiff.x * velocityDiff.x + velocityDiff.y * velocityDiff.y;
+
+      // Apply a strongly non-linear scaling based on alignment
+      // This creates a steep drop-off for well-aligned velocity (alignmentDot near 1)
+      // For alignmentDot = 1, this will be close to 0
+      // For alignmentDot = 0, this will be 1
+      // For alignmentDot = -1, this will be 4
+      const alignmentScaling =
+        Math.pow(1.0 - Math.max(0, alignmentDot), 4) +
+        Math.pow(Math.max(0, -alignmentDot), 2);
+
+      // Combine deviation and alignment in a way that:
+      // 1. Gives very low costs for well-aligned velocity with good magnitude (< 10)
+      // 2. Gives higher costs for misaligned velocity
+      // 3. Penalizes opposed velocity strongly
+      const scaledDeviation =
+        velocityDeviation * 0.005 + alignmentScaling * 500;
+
+      // Scale the penalty by the weight
+      velocityCost = waypointsVelocityWeight * scaledDeviation;
 
       // If we're off the path, add a component for velocity toward/away from path
       if (shortestDistance > 0.001) {
@@ -113,33 +135,53 @@ export const getWaypointsFollowingCost = (
           y: toPathVector.y / toPathDistance,
         };
 
-        // Alignment with path direction
+        // Calculate alignment with path direction
         const pathAlignmentDot =
           velocityNorm.x * toPathNorm.x + velocityNorm.y * toPathNorm.y;
 
-        // Adjust cost based on whether we're moving toward or away from path
-        // Scale by distance - more important when further from path
-        const pathDirectionFactor =
-          -pathAlignmentDot * Math.min(1, shortestDistance / 50);
+        // Calculate a distance scaling factor that increases with distance from path
+        // This creates a stronger urge to return to the path when far away
+        // and less influence when close to the path
+        const distanceScaleFactor = Math.min(1, shortestDistance / 100);
 
-        // Scale by velocity magnitude - faster movement toward path is better
-        const pathVelocityFactor =
-          pathAlignmentDot > 0
-            ? Math.min(1, velocityMagnitude / expectedVelocity)
-            : 0;
+        // Unified approach without conditionals:
+        // 1. Create a continuous function that transitions smoothly from rewards to penalties
+        // 2. Apply a cubic function to pathAlignmentDot that creates a strong asymmetry:
+        //    - Positive alignment (toward path) creates a strong negative cost (reward)
+        //    - Negative alignment (away from path) creates a strong positive cost (penalty)
+        //    - Near-zero alignment creates minimal adjustment
 
-        velocityCost +=
-          waypointsVelocityWeight *
-          pathDirectionFactor *
-          (1 + pathVelocityFactor);
+        // This function creates:
+        // - Strong negative costs (rewards) when aligned toward the path
+        // - Strong positive costs (penalties) when aligned away from the path
+        // - Smooth transition around zero with minimal effect for near-perpendicular movement
+        const alignmentFactor =
+          Math.pow(pathAlignmentDot, 3) * velocityMagnitude;
+
+        // Create a continuous multiplier that varies based on alignment
+        // Using a sigmoid-like function that transitions smoothly from 200 to 500
+        // 500 when moving toward path (pathAlignmentDot > 0)
+        // 200 when moving away from path (pathAlignmentDot < 0)
+        // The function (300 * tanh(pathAlignmentDot * 3) + 350) accomplishes this transition smoothly
+        const continuousMultiplier =
+          300 * Math.tanh(pathAlignmentDot * 3) + 350;
+
+        // Apply the continuous multiplier to the alignment factor
+        const pathEffect = alignmentFactor * continuousMultiplier;
+
+        // Apply the effect, which will be:
+        // - Negative (reducing cost) when moving toward the path
+        // - Positive (increasing cost) when moving away from the path
+        velocityCost -=
+          waypointsVelocityWeight * pathEffect * distanceScaleFactor;
       }
     }
 
     return distanceCost + velocityCost;
   } catch (error) {
-    // If anything goes wrong, fall back to a simple distance-based cost
+    // If anything goes wrong, fall back to a simple distance-based cost with quadratic scaling
     console.error("Error in getWaypointsFollowingCost:", error);
     const { shortestDistance } = getShortestLineToPath(waypoints, position);
-    return waypointsDistanceWeight * Math.sqrt(shortestDistance);
+    return waypointsDistanceWeight * shortestDistance;
   }
 };

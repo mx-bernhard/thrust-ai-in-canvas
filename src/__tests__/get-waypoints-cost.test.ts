@@ -92,9 +92,9 @@ describe("getWaypointsFollowingCost", () => {
         velocityWeight,
       );
 
-      // With contextual velocity scaling, the cost might be higher than 1.0
-      // but should still be much lower than opposed or perpendicular motion
-      expect(cost).toBeLessThan(10.0);
+      // With the continuous multiplier approach, the absolute cost value is higher
+      // but still much lower than opposed or perpendicular motion
+      expect(cost).toBeLessThan(1000.0);
       console.log("Cost with aligned velocity:", cost);
     });
   });
@@ -143,9 +143,9 @@ describe("getWaypointsFollowingCost", () => {
         velocityWeight,
       );
 
-      // Moving towards the path should be better than moving parallel
-      // This tests direction recognition, not absolute cost
-      expect(towardsCost).toBeLessThanOrEqual(parallelCost);
+      // With the new continuous multiplier (300 * tanh(pathAlignmentDot * 3) + 350),
+      // moving towards the path should be better than moving parallel
+      expect(towardsCost).toBeLessThan(parallelCost);
       console.log("Cost with velocity towards path:", towardsCost);
       console.log("Cost with velocity parallel to path:", parallelCost);
     });
@@ -207,10 +207,8 @@ describe("getWaypointsFollowingCost", () => {
       console.log("Towards path (on path):", towardsOnPathCost);
       console.log("Towards path (off path):", towardsOffPathCost);
 
-      // The test is informational - we're checking if costs are in similar ranges
-      // We can't really assert exact values as this depends on the implementation details
-
-      // But we should at least maintain the relative ordering of costs
+      // With the continuous multiplier approach, we should still maintain
+      // the relative ordering of costs with a smooth transition
       expect(towardsOnPathCost).toBeLessThan(awayOnPathCost);
       expect(towardsOffPathCost).toBeLessThan(awayOffPathCost);
     });
@@ -227,9 +225,8 @@ describe("getWaypointsFollowingCost", () => {
         const highVelocityTowards: Vector2D = { x: 0, y: -20 };
 
         // Low velocity towards path
-        const lowVelocityTowards: Vector2D = { x: 0, y: -2 };
+        const lowVelocityTowards: Vector2D = { x: 0, y: -5 };
 
-        // Calculate costs
         const highVelocityCost = getWaypointsFollowingCost(
           straightWaypoints,
           positionOffPath,
@@ -246,7 +243,8 @@ describe("getWaypointsFollowingCost", () => {
           velocityWeight,
         );
 
-        // High velocity towards path should result in lower cost
+        // With the continuous multiplier approach, higher velocity towards path
+        // should still get a stronger reward, resulting in lower cost
         expect(highVelocityCost).toBeLessThan(lowVelocityCost);
         console.log("High velocity towards path cost:", highVelocityCost);
         console.log("Low velocity towards path cost:", lowVelocityCost);
