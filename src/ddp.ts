@@ -244,11 +244,30 @@ export class DDPController {
 
       // If we found a collision within our time horizon
       if (minTimeToCollision < this.collisionTimeHorizon) {
-        // Cost is higher for imminent collisions and lower for distant ones
-        // Use inverse relationship with time to collision
-        const timeFactor = 1.0 - minTimeToCollision / this.collisionTimeHorizon;
+        // Calculate a spatial factor that represents effectively how close we are to collision
+        // This creates a virtual "distance to collision" that can be treated similarly to position costs
+
+        // Estimated distance to collision point (assumes constant velocity)
+        const distanceToCollision = minTimeToCollision * speed;
+
+        // Scale the distance relative to the time horizon and ship size
+        // This creates a spatial reference similar to position cost scaling
+        const effectiveMargin = Math.max(
+          this.shipRadius * 10,
+          (this.collisionTimeHorizon * speed) / 2,
+        );
+
+        // Create a quadratic cost based on how close we are to collision
+        // This scales similarly to position cost (but inverted - smaller distance = higher cost)
+        // Also limit the maximum value to avoid extreme costs
+        const collisionDistanceFactor = Math.min(
+          effectiveMargin,
+          Math.max(0, effectiveMargin - distanceToCollision),
+        );
+
+        // Now square it to match the quadratic scaling of position costs
         totalCost +=
-          this.collisionCourseWeight * Math.pow(timeFactor, 2) * 1000;
+          this.collisionCourseWeight * Math.pow(collisionDistanceFactor, 2);
       }
     }
 
@@ -265,21 +284,27 @@ export class DDPController {
     const bottomDist = this.canvasHeight - position.y;
 
     // Add quadratic costs when within margin of any boundary
+    // The cost scales with the square of penetration into the margin area
+    // This creates a cost function that:
+    // 1. Has the same quadratic scaling as position costs
+    // 2. Creates a soft barrier that strengthens as the ship approaches boundaries
+    // 3. Allows weights to be directly compared with position weight
+
     if (leftDist < this.boundaryMargin) {
-      totalCost +=
-        this.boundaryWeight * Math.pow(this.boundaryMargin - leftDist, 2);
+      const penetration = this.boundaryMargin - leftDist;
+      totalCost += this.boundaryWeight * Math.pow(penetration, 2);
     }
     if (rightDist < this.boundaryMargin) {
-      totalCost +=
-        this.boundaryWeight * Math.pow(this.boundaryMargin - rightDist, 2);
+      const penetration = this.boundaryMargin - rightDist;
+      totalCost += this.boundaryWeight * Math.pow(penetration, 2);
     }
     if (topDist < this.boundaryMargin) {
-      totalCost +=
-        this.boundaryWeight * Math.pow(this.boundaryMargin - topDist, 2);
+      const penetration = this.boundaryMargin - topDist;
+      totalCost += this.boundaryWeight * Math.pow(penetration, 2);
     }
     if (bottomDist < this.boundaryMargin) {
-      totalCost +=
-        this.boundaryWeight * Math.pow(this.boundaryMargin - bottomDist, 2);
+      const penetration = this.boundaryMargin - bottomDist;
+      totalCost += this.boundaryWeight * Math.pow(penetration, 2);
     }
 
     return totalCost;
