@@ -351,16 +351,20 @@ export class DDPController {
   }
 
   private cost(state: GameState): number {
-    // Target reaching cost
-    const positionCost =
-      this.positionWeight *
-      (Math.pow(state.position.x - this.targetPosition.x, 2) +
-        Math.pow(state.position.y - this.targetPosition.y, 2));
+    // Target reaching cost - uses quadratic scaling
+    // This creates a bowl-shaped cost function where:
+    // 1. Cost increases with the square of distance from target
+    // 2. The gradient points toward the target with increasing force as distance grows
+    // 3. Weight directly scales the importance relative to other quadratic costs
+    const dx = state.position.x - this.targetPosition.x;
+    const dy = state.position.y - this.targetPosition.y;
+    const squaredDistance = dx * dx + dy * dy;
+    const positionCost = this.positionWeight * squaredDistance;
+
     // Movement costs
     const velocityCost =
       Math.pow(state.velocity.x * this.velocityWeight, 2) +
       Math.pow(state.velocity.y * this.velocityWeight, 2);
-    const angleCost = Math.pow(state.angle, 2);
     const angularVelocityCost = Math.pow(
       state.angularVelocity * this.angularVelocityWeight,
       2,
@@ -371,11 +375,11 @@ export class DDPController {
     const boundaryCost = this.boundaryAvoidanceCost(state.position);
     const collisionCourseCost = this.collisionCourseCost(state);
     const waypointsCost = this.waypointsCost(state.position, state.velocity);
+
     // Store costs for debugging
     this.lastCosts = {
       position: positionCost,
       velocity: velocityCost,
-      angle: angleCost,
       angularVelocity: angularVelocityCost,
       obstacle: obstacleCost,
       boundary: boundaryCost,
@@ -384,7 +388,6 @@ export class DDPController {
       total:
         positionCost +
         velocityCost +
-        angleCost +
         angularVelocityCost +
         obstacleCost +
         boundaryCost +
