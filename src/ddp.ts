@@ -64,7 +64,6 @@ export class DDPController {
   private lastCosts = {
     position: 0,
     velocity: 0,
-    angle: 0,
     angularVelocity: 0,
     obstacle: 0,
     boundary: 0,
