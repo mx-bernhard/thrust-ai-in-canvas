@@ -327,9 +327,13 @@ export class DDPController {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Add cost if within margin
+      // Use quadratic scaling to match position costs:
+      // 1. Cost increases as the square of distance penetration into margin
+      // 2. Creates a smooth barrier that grows stronger near obstacles
+      // 3. Makes weight directly comparable with position weight
       if (distance < this.obstacleMargin) {
-        totalCost +=
-          this.obstacleWeight * Math.pow(this.obstacleMargin - distance, 2);
+        const penetration = this.obstacleMargin - distance;
+        totalCost += this.obstacleWeight * Math.pow(penetration, 2);
       }
     }
 
