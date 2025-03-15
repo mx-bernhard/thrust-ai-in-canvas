@@ -27,13 +27,12 @@ export class LunarLanderGame {
     costs: {
       position: number;
       velocity: number;
-      angle: number;
       angularVelocity: number;
       obstacle: number;
       boundary: number;
       collisionCourse?: number;
-      total: number;
       waypoints?: number;
+      total: number;
     };
     position: Vector2D;
     velocity: Vector2D;
@@ -57,7 +56,7 @@ export class LunarLanderGame {
   private controllerWeights: DDPWeights = {
     velocityWeight: 1,
     angularVelocityWeight: 0.1,
-    positionWeight: 15,
+    positionWeight: 0,
     boundaryWeight: 9,
     boundaryMargin: 50,
     obstacleWeight: 0,
@@ -65,6 +64,8 @@ export class LunarLanderGame {
     collisionCourseWeight: 25.0,
     collisionTimeHorizon: 5.0,
     shipRadius: 15,
+    waypointsDistanceWeight: 1,
+    waypointsVelocityWeight: 1,
   };
 
   // Change from readonly to regular property
@@ -88,7 +89,6 @@ export class LunarLanderGame {
       costs: {
         position: 0,
         velocity: 0,
-        angle: 0,
         angularVelocity: 0,
         obstacle: 0,
         boundary: 0,
@@ -613,13 +613,6 @@ export class LunarLanderGame {
 
     this.ctx.fillText(
       `Velocity Cost: ${formatCost(this.debugInfo.costs.velocity)}`,
-      20,
-      debugY,
-    );
-    debugY += lineHeight;
-
-    this.ctx.fillText(
-      `Angle Cost: ${formatCost(this.debugInfo.costs.angle)}`,
       20,
       debugY,
     );
