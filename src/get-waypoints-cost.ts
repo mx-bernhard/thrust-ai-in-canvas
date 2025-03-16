@@ -10,13 +10,19 @@ import { Vector2D } from "./types.ts";
  * @param waypointsDistanceWeight - The weight of the distance to the waypoints.
  * @param waypointsVelocityWeight - The weight of the velocity towards the waypoints.
  */
-export const getWaypointsFollowingCost = (
-  waypoints: Vector2D[],
-  position: Vector2D,
-  velocity: Vector2D,
-  waypointsDistanceWeight: number,
-  waypointsVelocityWeight: number,
-) => {
+export const getWaypointsFollowingCost = ({
+  waypoints,
+  position,
+  velocity,
+  waypointsDistanceWeight,
+  waypointsVelocityWeight,
+}: {
+  waypoints: Vector2D[];
+  position: Vector2D;
+  velocity: Vector2D;
+  waypointsDistanceWeight: number;
+  waypointsVelocityWeight: number;
+}) => {
   // Skip if there are not enough waypoints
   if (waypoints.length < 2) {
     return 0;

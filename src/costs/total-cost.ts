@@ -5,7 +5,7 @@ import { calculateAngularVelocityCost } from "./angular-velocity-cost";
 import { calculateObstacleAvoidanceCost } from "./obstacle-avoidance-cost";
 import { calculateBoundaryAvoidanceCost } from "./boundary-avoidance-cost";
 import { calculateCollisionCourseCost } from "./collision-course-cost";
-import { calculateWaypointsCost } from "./waypoints-cost";
+import { getWaypointsFollowingCost } from "../get-waypoints-cost.ts";
 
 export interface CostComponents {
   position: number;
@@ -92,13 +92,13 @@ export const calculateTotalCost = (
     weights.shipRadius,
   );
 
-  const waypointsCost = calculateWaypointsCost(
-    state.position,
-    state.velocity,
+  const waypointsCost = getWaypointsFollowingCost({
+    position: state.position,
+    velocity: state.velocity,
     waypoints,
-    weights.waypointsDistanceWeight,
-    weights.waypointsVelocityWeight,
-  );
+    waypointsDistanceWeight: weights.waypointsDistanceWeight,
+    waypointsVelocityWeight: weights.waypointsVelocityWeight,
+  });
 
   // Combine the costs
   const totalCost =

@@ -15,23 +15,23 @@ describe("getWaypointsFollowingCost", () => {
   ];
 
   describe("position on segment", () => {
-    // Position on the second segment
-    const positionOnSegment: Vector2D = { x: 150, y: 100 };
+    // Position very close to the second segment
+    const positionOnSegment: Vector2D = { x: 150, y: 100.1 };
 
     test("velocity opposed to desired direction - high cost", () => {
       // Velocity going backward (opposite to path direction)
       const opposedVelocity: Vector2D = { x: -10, y: 0 };
 
-      const cost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnSegment,
-        opposedVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const cost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnSegment,
+        velocity: opposedVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // Cost should be high due to velocity in opposite direction
-      expect(cost).toBeGreaterThan(1.0);
+      expect(cost).toBeGreaterThan(1000);
       console.log("Cost with opposed velocity:", cost);
     });
 
@@ -39,33 +39,33 @@ describe("getWaypointsFollowingCost", () => {
       // Velocity going perpendicular to the path (up)
       const perpendicularVelocity: Vector2D = { x: 0, y: 10 };
 
-      const cost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnSegment,
-        perpendicularVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const cost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnSegment,
+        velocity: perpendicularVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // Get the opposed and aligned costs for comparison
       const opposedVelocity: Vector2D = { x: -10, y: 0 };
       const alignedVelocity: Vector2D = { x: 10, y: 0 };
 
-      const opposedCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnSegment,
-        opposedVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const opposedCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnSegment,
+        velocity: opposedVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
-      const alignedCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnSegment,
-        alignedVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const alignedCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnSegment,
+        velocity: alignedVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // Cost should be between opposed (high) and aligned (low)
       expect(cost).toBeLessThan(opposedCost);
@@ -80,23 +80,30 @@ describe("getWaypointsFollowingCost", () => {
       );
     });
 
-    test("velocity towards desired direction - low cost", () => {
-      // Velocity going forward (aligned with path direction)
-      const alignedVelocity: Vector2D = { x: 10, y: 0 };
+    test.each([
+      { velocity: 1, expectedCost: 981 },
+      { velocity: 10, expectedCost: 811 },
+      { velocity: 90, expectedCost: 11 },
+      { velocity: 100, expectedCost: 1 },
+    ])(
+      "velocity $velocity towards desired direction has cost $expectedCost",
+      ({ velocity, expectedCost }) => {
+        // Velocity going forward (aligned with path direction)
+        const alignedVelocity: Vector2D = { x: velocity, y: 0 };
 
-      const cost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnSegment,
-        alignedVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+        const cost = getWaypointsFollowingCost({
+          waypoints: straightWaypoints,
+          position: positionOnSegment,
+          velocity: alignedVelocity,
+          waypointsDistanceWeight: distanceWeight,
+          waypointsVelocityWeight: velocityWeight,
+        });
 
-      // With the continuous multiplier approach, the absolute cost value is higher
-      // but still much lower than opposed or perpendicular motion
-      expect(cost).toBeLessThan(1000.0);
-      console.log("Cost with aligned velocity:", cost);
-    });
+        // With the continuous multiplier approach, the absolute cost value is higher
+        // but still much lower than opposed or perpendicular motion
+        expect(cost).toBeCloseTo(expectedCost, 0);
+      },
+    );
   });
 
   describe("position off segment", () => {
@@ -107,13 +114,13 @@ describe("getWaypointsFollowingCost", () => {
       // Velocity going further away from path
       const awayVelocity: Vector2D = { x: 0, y: 10 };
 
-      const cost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOffSegment,
-        awayVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const cost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOffSegment,
+        velocity: awayVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // Cost should be high due to moving away from path
       expect(cost).toBeGreaterThan(1.0);
@@ -127,21 +134,21 @@ describe("getWaypointsFollowingCost", () => {
       // Velocity going parallel to path (not helping to get closer)
       const parallelVelocity: Vector2D = { x: 10, y: 0 };
 
-      const towardsCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOffSegment,
-        towardsVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const towardsCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOffSegment,
+        velocity: towardsVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
-      const parallelCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOffSegment,
-        parallelVelocity,
-        distanceWeight,
-        velocityWeight,
-      );
+      const parallelCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOffSegment,
+        velocity: parallelVelocity,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // With the new continuous multiplier (300 * tanh(pathAlignmentDot * 3) + 350),
       // moving towards the path should be better than moving parallel
@@ -169,37 +176,37 @@ describe("getWaypointsFollowingCost", () => {
       const towardsVelocityOffPath = { x: 0, y: -10 }; // Towards path
 
       // Calculate the costs
-      const awayOnPathCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnPath,
-        awayVelocityOnPath,
-        distanceWeight,
-        velocityWeight,
-      );
+      const awayOnPathCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnPath,
+        velocity: awayVelocityOnPath,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
-      const awayOffPathCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOffPath,
-        awayVelocityOffPath,
-        distanceWeight,
-        velocityWeight,
-      );
+      const awayOffPathCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOffPath,
+        velocity: awayVelocityOffPath,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
-      const towardsOnPathCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOnPath,
-        towardsVelocityOnPath,
-        distanceWeight,
-        velocityWeight,
-      );
+      const towardsOnPathCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOnPath,
+        velocity: towardsVelocityOnPath,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
-      const towardsOffPathCost = getWaypointsFollowingCost(
-        straightWaypoints,
-        positionOffPath,
-        towardsVelocityOffPath,
-        distanceWeight,
-        velocityWeight,
-      );
+      const towardsOffPathCost = getWaypointsFollowingCost({
+        waypoints: straightWaypoints,
+        position: positionOffPath,
+        velocity: towardsVelocityOffPath,
+        waypointsDistanceWeight: distanceWeight,
+        waypointsVelocityWeight: velocityWeight,
+      });
 
       // Log all costs for comparison
       console.log("Away from path (on path):", awayOnPathCost);
@@ -227,21 +234,21 @@ describe("getWaypointsFollowingCost", () => {
         // Low velocity towards path
         const lowVelocityTowards: Vector2D = { x: 0, y: -5 };
 
-        const highVelocityCost = getWaypointsFollowingCost(
-          straightWaypoints,
-          positionOffPath,
-          highVelocityTowards,
-          distanceWeight,
-          velocityWeight,
-        );
+        const highVelocityCost = getWaypointsFollowingCost({
+          waypoints: straightWaypoints,
+          position: positionOffPath,
+          velocity: highVelocityTowards,
+          waypointsDistanceWeight: distanceWeight,
+          waypointsVelocityWeight: velocityWeight,
+        });
 
-        const lowVelocityCost = getWaypointsFollowingCost(
-          straightWaypoints,
-          positionOffPath,
-          lowVelocityTowards,
-          distanceWeight,
-          velocityWeight,
-        );
+        const lowVelocityCost = getWaypointsFollowingCost({
+          waypoints: straightWaypoints,
+          position: positionOffPath,
+          velocity: lowVelocityTowards,
+          waypointsDistanceWeight: distanceWeight,
+          waypointsVelocityWeight: velocityWeight,
+        });
 
         // With the continuous multiplier approach, higher velocity towards path
         // should still get a stronger reward, resulting in lower cost
@@ -263,21 +270,21 @@ describe("getWaypointsFollowingCost", () => {
         const lowVelocity: Vector2D = { x: 2, y: 0 };
 
         // Calculate costs
-        const highVelocityCost = getWaypointsFollowingCost(
-          straightWaypoints,
-          positionOnPath,
-          highVelocity,
-          distanceWeight,
-          velocityWeight,
-        );
+        const highVelocityCost = getWaypointsFollowingCost({
+          waypoints: straightWaypoints,
+          position: positionOnPath,
+          velocity: highVelocity,
+          waypointsDistanceWeight: distanceWeight,
+          waypointsVelocityWeight: velocityWeight,
+        });
 
-        const lowVelocityCost = getWaypointsFollowingCost(
-          straightWaypoints,
-          positionOnPath,
-          lowVelocity,
-          distanceWeight,
-          velocityWeight,
-        );
+        const lowVelocityCost = getWaypointsFollowingCost({
+          waypoints: straightWaypoints,
+          position: positionOnPath,
+          velocity: lowVelocity,
+          waypointsDistanceWeight: distanceWeight,
+          waypointsVelocityWeight: velocityWeight,
+        });
 
         // High velocity in correct direction should result in lower cost
         expect(highVelocityCost).toBeLessThan(lowVelocityCost);

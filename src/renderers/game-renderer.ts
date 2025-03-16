@@ -263,7 +263,6 @@ export class GameRenderer {
 
     // Format numbers to be more readable
     const formatCost = (cost: number) => {
-      if (cost < 0.01) return "0";
       if (cost > 999999) return (cost / 1000000).toFixed(2) + "M";
       if (cost > 9999) return (cost / 1000).toFixed(2) + "K";
       return cost.toFixed(2);
