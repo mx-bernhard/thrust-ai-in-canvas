@@ -1,6 +1,6 @@
 import { GameState, GameConfig, Vector2D } from "./types";
 import { DDPController, DDPWeights } from "./ddp";
-import { GameRenderer } from "./renderers/game-renderer";
+import { PhaserRenderer } from "./renderers/phaser-renderer";
 import { CollisionHandler } from "./physics/collision-handler";
 import { PathManager } from "./path-planning/path-manager";
 import { DebugManager } from "./debug/debug-manager";
@@ -19,7 +19,7 @@ export class LunarLanderGame {
   private pathManager: PathManager;
   private collisionHandler: CollisionHandler;
   private debugManager: DebugManager;
-  private renderer: GameRenderer;
+  private renderer: PhaserRenderer;
   private gameLoopManager: GameLoop;
 
   private cachedController: DDPController | null = null;
@@ -94,7 +94,7 @@ export class LunarLanderGame {
     this.cachedController.computeControl(this.state);
 
     // Initialize renderer
-    this.renderer = new GameRenderer(
+    this.renderer = new PhaserRenderer(
       canvas,
       () => this.state,
       () => this.obstacleManager.getObstacles(),
@@ -104,6 +104,18 @@ export class LunarLanderGame {
       () => this.getInterpolatedTarget(),
       () => this.configManager.getThrustMax(),
       () => this.pathManager.getLookaheadDistance(),
+      () => {
+        console.log("Renderer is ready, initializing game systems");
+        this.setupCanvas();
+
+        // Plan initial path
+        this.planPath();
+
+        // Start the game loop only after the renderer is initialized
+        this.gameLoopManager.start();
+
+        console.log("Game loop started");
+      },
     );
 
     // Initialize game loop
@@ -117,11 +129,6 @@ export class LunarLanderGame {
       () => this.renderer.draw(),
       () => this.configManager.getGravity(),
     );
-
-    this.setupCanvas();
-
-    // Plan initial path
-    this.planPath();
 
     // Handle window resize
     window.addEventListener("resize", () => {

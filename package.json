@@ -17,7 +17,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
-    "mathjs": "^11.11.0"
+    "mathjs": "^11.11.0",
+    "phaser": "^3.88.2"
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",

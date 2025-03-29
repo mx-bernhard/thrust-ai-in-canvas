@@ -14,7 +14,20 @@ if (!appContainer) {
 const canvas = document.createElement("canvas");
 canvas.width = window.innerWidth * 0.9; // 90% of window width
 canvas.height = window.innerHeight * 0.7; // 70% of window height
-appContainer.appendChild(canvas);
+canvas.id = "phaser-canvas"; // Add ID for debugging
+
+// Create canvas container to control sizing
+const canvasContainer = document.createElement("div");
+canvasContainer.style.width = `${window.innerWidth * 0.9}px`; // 90% of window width
+canvasContainer.style.height = `${window.innerHeight * 0.7}px`; // 70% of window height
+canvasContainer.style.position = "relative";
+canvasContainer.id = "canvas-container"; // Add ID for debugging
+canvasContainer.appendChild(canvas);
+appContainer.appendChild(canvasContainer);
+
+// Add console logs
+console.log("Canvas created:", canvas);
+console.log("Canvas size:", canvas.width, canvas.height);
 
 // Game configuration
 const gameConfig: GameConfig = {
