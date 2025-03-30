@@ -7,7 +7,7 @@ interface RRTNode {
 }
 
 export class RRTPathPlanner {
-  private readonly maxIterations: number = 1000;
+  private readonly maxIterations: number = 5000;
   private readonly stepSize: number = 20;
   private readonly goalBias: number = 0.1;
   private readonly goalThreshold: number = 30;
